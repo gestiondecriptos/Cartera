@@ -1,0 +1,32 @@
+name: Añadir dirección BTC
+
+on:
+  workflow_dispatch:
+    inputs:
+      address:
+        description: Dirección BTC a monitorizar (bc1..., 1... o 3...)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Añadir la dirección a data/wallets.json
+        env:
+          ADDR: ${{ inputs.address }}
+        run: |
+          if ! echo "$ADDR" | grep -Eq '^(bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$'; then
+            echo "La dirección no parece válida"; exit 1
+          fi
+          [ -f data/wallets.json ] || echo '{"btc":[]}' > data/wallets.json
+          jq --arg a "$ADDR" '.btc = ((.btc + [$a]) | unique)' data/wallets.json > /tmp/w.json
+          mv /tmp/w.json data/wallets.json
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/wallets.json
+          git commit -m "Añadir dirección BTC" || echo "Sin cambios"
+          git push
