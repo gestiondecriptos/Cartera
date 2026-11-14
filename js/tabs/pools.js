@@ -1,5 +1,6 @@
 import { usd, qty, pct, cls, donut, COLORS } from '../format.js';
 import { MOCK_POOLS } from '../mock-data.js';
+import { TRACK_POOLS } from '../config.js';
 
 let sel = 0, last = null;
 
@@ -36,6 +37,7 @@ export function render(ctx) {
 
   const root = document.getElementById('pools-root');
   root.innerHTML = `
+    ${TRACK_POOLS ? '' : '<div class="card text-sm" style="border-color:#fbbf24">Datos de ejemplo: estos pools no son tuyos y <b>no se incluyen en el patrimonio</b> ni en el histórico hasta conectar una fuente real.</div>'}
     <div class="card scroll-x">
       <input id="pool-filter" class="inp mb-3 max-w-xs" placeholder="Filtrar por par o protocolo">
       <table class="tbl"><thead><tr><th>Par / Protocolo</th><th>Estado</th><th>Composición</th><th class="r">IL</th><th class="r">Tiempo</th><th class="r">ROI neto</th></tr></thead>
