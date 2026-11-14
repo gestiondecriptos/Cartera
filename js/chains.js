@@ -2,22 +2,42 @@
 import { WALLETS, CHAINS, COINGECKO_IDS, STAKING_SYMBOLS } from './config.js';
 import { normalizeSymbol } from './accounting.js';
 
+// Reintenta si hay límite de peticiones (429), error del servidor (5xx) o fallo de red; los errores definitivos (404, 403…) no
 const get = async (url, opts = {}) => {
-  const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(15000) });
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
+  let err;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(15000) });
+      if (r.ok) return await r.json();
+      err = new Error(String(r.status));
+      if (r.status !== 429 && r.status < 500) throw err;
+    } catch (e) {
+      if (e === err) throw e;
+      err = e;
+    }
+    await new Promise(res => setTimeout(res, 800 * (i + 1)));
+  }
+  throw err;
 };
+// Motivo del fallo en lenguaje claro (se muestra bajo la tabla de activos)
+const why = e => /^\d+$/.test(e.message) ? `error HTTP ${e.message}` : /timed out|abort/i.test(e.message) ? 'tiempo agotado' : /failed to fetch|network|load failed/i.test(e.message) ? 'sin conexión o bloqueado por el navegador' : e.message;
 const post = (url, body) => get(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const orNull = p => p.catch(e => (e.message === '404' ? null : Promise.reject(e))); // cuenta nueva/vacía = sin saldo, no es un fallo
 const short = a => (a.length > 14 ? a.slice(0, 6) + '…' + a.slice(-4) : a);
 const known = symbol => { const s = normalizeSymbol(symbol).symbol; return s === 'EUR' || s in COINGECKO_IDS; };
 
 // Cada función devuelve { items, failed, ignored, attempts }
-async function eachUnit(units, fn) {
+// Máximo 3 lecturas a la vez, para no superar los límites de las APIs gratuitas
+async function eachUnit(units, fn, limit = 3) {
   const out = { items: [], failed: [], ignored: [], attempts: units.length };
-  await Promise.all(units.map(async u => {
-    try { await fn(u, out); } catch (e) { console.warn('Fallo al leer', u.label, e.message); out.failed.push(u.label); }
-  }));
+  let next = 0;
+  const worker = async () => {
+    while (next < units.length) {
+      const u = units[next++];
+      try { await fn(u, out); } catch (e) { console.warn('Fallo al leer', u.label, e.message); out.failed.push(`${u.label} (${why(e)})`); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, units.length) }, worker));
   return out;
 }
 const push = (out, base, symbol, amount, category) => {
@@ -75,8 +95,17 @@ export const fetchHyperliquid = () => eachUnit(
   });
 
 /* ---- Solana: SOL + tokens SPL (solo los de config.js) ---- */
-const rpc = (method, params) => post(CHAINS.solanaRpc, { jsonrpc: '2.0', id: 1, method, params })
-  .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
+async function rpc(method, params) {
+  let err;
+  for (const url of CHAINS.solanaRpc) {
+    try {
+      const j = await post(url, { jsonrpc: '2.0', id: 1, method, params });
+      if (j.error) throw new Error(j.error.message);
+      return j.result;
+    } catch (e) { err = e; }                       // prueba el siguiente servidor
+  }
+  throw err;
+}
 export const fetchSolana = () => eachUnit(
   WALLETS.solana.map(a => ({ a, label: `Solana ${short(a)}` })),
   async ({ a }, out) => {
@@ -139,7 +168,7 @@ export async function loadChains() {
   const sources = {}, items = {}, failed = [], ignored = new Set();
   await Promise.all(Object.entries(jobs).map(async ([name, fn]) => {
     let r;
-    try { r = await fn(); } catch (e) { r = { items: [], failed: [name], ignored: [], attempts: 1 }; }
+    try { r = await fn(); } catch (e) { r = { items: [], failed: [`${name} (${why(e)})`], ignored: [], attempts: 1 }; }
     sources[name] = !r.failed.length ? 'live' : r.failed.length >= r.attempts ? 'mock' : 'partial';
     items[name] = r.items;
     failed.push(...r.failed);
