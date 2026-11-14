@@ -1,5 +1,6 @@
 // Capa de datos: intenta la API real y, si falla (CORS, límite de peticiones, sin red), usa datos simulados.
 import { WALLETS, COINGECKO_IDS } from './config.js';
+import { loadChains } from './chains.js';
 import { MOCK_PRICES, MOCK_EUR_USD, MOCK_BTC_ONCHAIN, MOCK_OTHER_ONCHAIN } from './mock-data.js';
 
 const API = 'https://mempool.space/api';
@@ -44,15 +45,24 @@ async function fetchBtcOnchain(addresses) {
   return { balances: out, source: 'live', failed };
 }
 
-// Fase 1-2: BTC (mempool.space) es real; EVM/Solana/Tron/Cosmos siguen simulados hasta las fases siguientes.
+// Redes de cada familia: si TODA una familia falla se usan datos simulados de esa familia (y se avisa)
+const FAMILY_NETWORKS = {
+  evm: ['Ethereum', 'Base', 'Optimism', 'Arbitrum'], bsc: ['BSC'], hyperliquid: ['Hyperliquid'], solana: ['Solana'], tron: ['Tron'], cosmos: ['Cosmos'],
+};
+
 export async function loadMarketData(btcAddresses = WALLETS.btc) {
-  const [p, btc] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses)]);
+  const [p, btc, chains] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses), loadChains()]);
+  const others = Object.keys(FAMILY_NETWORKS).flatMap(f => chains.sources[f] === 'mock'
+    ? MOCK_OTHER_ONCHAIN.filter(i => FAMILY_NETWORKS[f].includes(i.network))
+    : chains.items[f]);
   return {
     prices: p.prices,
     eurUsd: p.eurUsd,
-    onchain: [...btc.balances, ...MOCK_OTHER_ONCHAIN],
+    onchain: [...btc.balances, ...others],
     btcFailed: btc.failed,
-    sources: { prices: p.source, btc: btc.source, otherChains: 'mock' },
+    chainFailed: chains.failed,
+    ignored: chains.ignored,
+    sources: { prices: p.source, btc: btc.source, ...chains.sources },
   };
 }
 
