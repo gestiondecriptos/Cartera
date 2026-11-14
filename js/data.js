@@ -1,6 +1,7 @@
 // Capa de datos: intenta la API real y, si falla (CORS, límite de peticiones, sin red), usa datos simulados.
 import { WALLETS, COINGECKO_IDS } from './config.js';
 import { loadChains } from './chains.js';
+import { fetchPools, poolItems } from './trackdefi.js';
 import { MOCK_PRICES, MOCK_EUR_USD, MOCK_BTC_ONCHAIN, MOCK_OTHER_ONCHAIN } from './mock-data.js';
 
 const API = 'https://mempool.space/api';
@@ -51,18 +52,19 @@ const FAMILY_NETWORKS = {
 };
 
 export async function loadMarketData(btcAddresses = WALLETS.btc) {
-  const [p, btc, chains] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses), loadChains()]);
+  const [p, btc, chains, pools] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses), loadChains(), fetchPools()]);
   const others = Object.keys(FAMILY_NETWORKS).flatMap(f => chains.sources[f] === 'mock'
     ? MOCK_OTHER_ONCHAIN.filter(i => FAMILY_NETWORKS[f].includes(i.network))
     : chains.items[f]);
   return {
     prices: p.prices,
     eurUsd: p.eurUsd,
-    onchain: [...btc.balances, ...others],
+    onchain: [...btc.balances, ...others, ...poolItems(pools.positions)],
+    pools,
     btcFailed: btc.failed,
     chainFailed: chains.failed,
     ignored: chains.ignored,
-    sources: { prices: p.source, btc: btc.source, ...chains.sources },
+    sources: { prices: p.source, btc: btc.source, ...chains.sources, pools: pools.source },
   };
 }
 

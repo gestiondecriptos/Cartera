@@ -1,7 +1,7 @@
 import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory } from './data.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
-import { DUAL_ASSETS, CEX_ASSETS, WALLETS, TRACK_POOLS } from './config.js';
+import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
 import { short } from './format.js';
 import * as pools from './tabs/pools.js';
 import * as staking from './tabs/staking.js';
@@ -44,7 +44,7 @@ function refresh() {
   if (!market) return;
   bootMsg('');
   const state = store.getState();
-  const view = aggregateHoldings({ onchain: [...market.onchain, ...(TRACK_POOLS ? pools.poolItems() : [])], state, prices: market.prices, eurUsd: market.eurUsd });
+  const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
   const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
   const ctx = { view, state, market, ledger, history: historyData };
@@ -88,8 +88,8 @@ function renderInicio(view, fund, shares) {
 
   const s = market.sources;
   const badge = $('#data-badge');
-  const NAMES = { prices: 'precios', btc: 'BTC', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', solana: 'Solana', tron: 'Tron', cosmos: 'Cosmos' };
-  const bad = Object.entries(s).filter(([, v]) => v !== 'live').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : 'simulado'}`);
+  const NAMES = { prices: 'precios', btc: 'BTC', pools: 'Pools', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', solana: 'Solana', tron: 'Tron', cosmos: 'Cosmos' };
+  const bad = Object.entries(s).filter(([, v]) => v !== 'live').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : v === 'file' ? 'desde archivo' : v === 'none' ? 'sin datos' : 'simulado'}`);
   badge.className = `badge ${bad.length ? 'mock' : 'live'}`;
   badge.textContent = bad.length ? `Datos no reales: ${bad.join(', ')}` : 'Datos reales';
 }

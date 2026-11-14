@@ -1,9 +1,8 @@
 // Snapshot del patrimonio -> data/history.json. Lo ejecuta GitHub Actions (Node 20), sin navegador.
 import fs from 'node:fs';
-import { WALLETS, INITIAL_SHARES, TRACK_POOLS } from '../js/config.js';
+import { WALLETS, INITIAL_SHARES } from '../js/config.js';
 import { loadMarketData } from '../js/data.js';
 import { aggregateHoldings, fundPrice } from '../js/accounting.js';
-import { poolItems } from '../js/tabs/pools.js';
 
 const file = p => new URL(`../${p}`, import.meta.url);
 const readJson = (p, fallback) => { try { return JSON.parse(fs.readFileSync(file(p), 'utf8')); } catch { return fallback; } };
@@ -17,6 +16,8 @@ const state = {
 const shares = state.shares.base + (state.shares.movements || []).reduce((t, m) => t + (m.type === 'add' ? m.qty : -m.qty), 0);
 
 const market = await loadMarketData([...new Set([...WALLETS.btc, ...extra])]);
+// Los pools leídos se guardan para que la web los muestre si el navegador no puede consultar TrackDeFi
+if (market.pools.source === 'live') fs.writeFileSync(file('data/pools.json'), JSON.stringify({ fetchedAt: market.pools.fetchedAt, results: market.pools.raws }) + '\n');
 const s = market.sources;
 if (s.prices !== 'live' || s.btc !== 'live') {
   console.error('Precios o BTC on-chain no son reales (API caída o límite de peticiones). No se guarda nada.', s);
@@ -28,7 +29,7 @@ if (partial && process.env.INCLUDE_PARTIAL !== 'true') {
   process.exit(0);
 }
 
-const view = aggregateHoldings({ onchain: [...market.onchain, ...(TRACK_POOLS ? poolItems() : [])], state, prices: market.prices, eurUsd: market.eurUsd });
+const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
 const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
 const pos = {}, qty = {}; // pos = valor en USD, qty = cantidad de cada activo, por «red|activo»
 for (const h of view.holdings) for (const x of h.sources) {

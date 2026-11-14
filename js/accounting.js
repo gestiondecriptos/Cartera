@@ -46,7 +46,7 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
   for (const it of items) {
     if (!it.amount) continue;
     const n = normalizeSymbol(it.symbol);
-    const px = priceUsd(n.symbol, prices, eurUsd);
+    const px = priceUsd(n.symbol, prices, eurUsd) ?? it.priceUsd ?? null; // priceUsd del item: respaldo para tokens sin precio propio
     if (px == null) missing.add(n.symbol);
     const amount = it.amount * n.sign;
     const usd = amount * (px ?? 0);

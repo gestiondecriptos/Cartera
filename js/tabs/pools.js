@@ -1,68 +1,59 @@
-import { usd, qty, pct, cls, donut, COLORS } from '../format.js';
-import { MOCK_POOLS } from '../mock-data.js';
-import { TRACK_POOLS } from '../config.js';
+import { usd, qty, pct, donut, COLORS } from '../format.js';
+import { normalizeSymbol } from '../accounting.js';
 
 let sel = 0, last = null;
-
-function analyse(p, prices) {
-  const pb = prices[p.base]?.usd, pq = prices[p.quote]?.usd;
-  const price = pb && pq ? pb / pq : null;
-  const tokens = Object.entries(p.amounts).map(([s, a]) => ({ s, a, v: a * (prices[s]?.usd ?? 0) }));
-  const total = tokens.reduce((t, x) => t + x.v, 0) || 1;
-  let status = 'En rango', tone = 'ok';
-  if (price == null) { status = 'Sin precio del par'; tone = 'none'; }
-  else if (price < p.min) { status = `Fuera de rango - 100% ${p.base}`; tone = 'out'; }
-  else if (price > p.max) { status = `Fuera de rango - 100% ${p.quote}`; tone = 'out'; }
-  const edge = (p.max - p.min) * 0.1;
-  const color = tone === 'none' ? '#94a3b8' : tone === 'out' ? '#ef4444' : (price - p.min < edge || p.max - price < edge) ? '#fbbf24' : '#22c55e';
-  const roiPct = p.roiUsd / p.invested * 100;
-  return { ...p, price, tokens, total, status, color, roiPct, apr: roiPct * 365 / p.days, ilPct: p.ilUsd / p.invested * 100 };
-}
-
-export const analysePools = prices => MOCK_POOLS.map(p => analyse(p, prices));
-
-// Los pools cuentan en el patrimonio: cada token del pool se suma a su activo real (categoría «pools»)
-export const poolItems = () => MOCK_POOLS.flatMap(p => Object.entries(p.amounts).map(([symbol, amount]) =>
-  ({ symbol, amount, network: p.network, wallet: '0x34bC…890f', custody: 'metamask', category: 'pools' })));
+const SRC = {
+  none: 'No se pudieron leer los pools (TrackDeFi no responde). No están incluidos en el patrimonio.',
+  partial: 'Algunas direcciones no se pudieron leer: la lista puede estar incompleta.',
+};
 
 export function render(ctx) {
   last = ctx;
-  const pools = MOCK_POOLS.map(p => analyse(p, ctx.market.prices));
-  sel = Math.min(sel, pools.length - 1);
-  const s = pools[sel];
-
-  const lo = s.min - (s.max - s.min) * 0.3, hi = s.max + (s.max - s.min) * 0.3, at = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
-  const expo = {};
-  pools.forEach(p => p.tokens.forEach(t => (expo[t.s] = (expo[t.s] || 0) + t.v)));
-
+  const { positions, source, fetchedAt, warnings } = ctx.market.pools;
   const root = document.getElementById('pools-root');
+  sel = Math.min(sel, Math.max(0, positions.length - 1));
+  const s = positions[sel];
+
+  const fileNote = source === 'file' ? `Datos guardados por el workflow${fetchedAt ? ` (${fetchedAt.slice(0, 16).replace('T', ' ')} UTC)` : ''}: el navegador no pudo consultar TrackDeFi directamente.` : '';
+  const notes = [SRC[source], fileNote].filter(Boolean);
+
+  // exposición por activo (WBNB cuenta como BNB, etc.)
+  const expo = {};
+  positions.forEach(p => p.tokens.forEach(t => { const k = normalizeSymbol(t.symbol).symbol; expo[k] = (expo[k] || 0) + t.valueUsd; }));
+
+  const lo = s?.range ? s.range.lower - (s.range.upper - s.range.lower) * 0.3 : 0, hi = s?.range ? s.range.upper + (s.range.upper - s.range.lower) * 0.3 : 1;
+  const at = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+  const fmtR = v => (Math.abs(v) >= 1000 ? usd(v).replace(/US\$|\$/, '').trim() : v.toLocaleString('es-ES', { maximumSignificantDigits: 5 }));
+
   root.innerHTML = `
-    ${TRACK_POOLS ? '' : '<div class="card text-sm" style="border-color:#fbbf24">Datos de ejemplo: estos pools no son tuyos y <b>no se incluyen en el patrimonio</b> ni en el histórico hasta conectar una fuente real.</div>'}
+    ${notes.map(n => `<div class="card text-sm" style="border-color:#fbbf24">${n}</div>`).join('')}
     <div class="card scroll-x">
       <input id="pool-filter" class="inp mb-3 max-w-xs" placeholder="Filtrar por par o protocolo">
-      <table class="tbl"><thead><tr><th>Par / Protocolo</th><th>Estado</th><th>Composición</th><th class="r">IL</th><th class="r">Tiempo</th><th class="r">ROI neto</th></tr></thead>
-      <tbody>${pools.map((p, i) => `<tr data-i="${i}" data-q="${(p.pair + p.protocol).toLowerCase()}" class="cursor-pointer ${i === sel ? 'bg-[#11131f]' : ''}">
-        <td><div class="font-medium">${p.pair}</div><div class="label">${p.protocol} · ${p.network}</div></td>
+      ${positions.length ? `<table class="tbl"><thead><tr><th>Par / Protocolo</th><th>Estado</th><th>Composición</th><th class="r">Valor</th><th class="r">Comisiones pendientes</th><th class="r">IL</th><th class="r">Tiempo</th><th class="r">ROI neto</th></tr></thead>
+      <tbody>${positions.map((p, i) => `<tr data-i="${i}" data-q="${(p.pair + p.protocol + p.network).toLowerCase()}" class="cursor-pointer ${i === sel ? 'bg-[#11131f]' : ''}">
+        <td><div class="font-medium">${p.pair}</div><div class="label">${p.protocol} · ${p.network}${p.staked ? ' · staked' : ''}</div></td>
         <td><span style="color:${p.color}">${p.status}</span></td>
-        <td class="num">${p.tokens.map(t => `${qty(t.a)} ${t.s} (${pct(t.v / p.total * 100)})`).join('<br>')}</td>
-        <td class="num r ${cls(p.ilUsd)}">${usd(p.ilUsd)}<br>${pct(p.ilPct, 2)}</td>
-        <td class="num r">${p.days} d</td>
-        <td class="num r ${cls(p.roiUsd)}">${usd(p.roiUsd)}<br>${pct(p.roiPct, 2)} · ${pct(p.apr, 1)} anual</td></tr>`).join('')}</tbody></table>
-      <p class="label mt-3">Pools de ejemplo (se conectarán a TrackDeFi más adelante). Pulsa una fila para ver su rango.</p>
+        <td class="num">${p.tokens.map(t => `${qty(t.amount)} ${t.symbol} (${pct(p.valueUsd ? t.valueUsd / p.valueUsd * 100 : 0)})`).join('<br>')}</td>
+        <td class="num r">${usd(p.valueUsd)}</td>
+        <td class="num r">${usd(p.rewardsUsd)}</td>
+        <td class="num r label">—</td><td class="num r label">—</td><td class="num r label">—</td></tr>`).join('')}</tbody></table>`
+        : '<p class="label">No hay posiciones.</p>'}
+      <p class="label mt-3">Fuente: TrackDeFi. No proporciona pérdida impermanente (IL), tiempo activo ni ROI: para calcularlos hace falta registrar la entrada de cada posición (fecha e importe). Pulsa una fila para ver su rango.</p>
+      ${warnings?.length ? `<p class="label mt-2">Avisos de TrackDeFi (puede faltar alguna posición): ${warnings.slice(0, 3).join(' · ')}${warnings.length > 3 ? ` (+${warnings.length - 3} más)` : ''}</p>` : ''}
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
-      <div class="card"><h2 class="mb-4 font-semibold">Rango de ${s.pair}</h2>
-        <div class="relative h-3 rounded bg-[#11131f]">
-          <div class="absolute h-3 rounded opacity-40" style="left:${at(s.min)}%;width:${at(s.max) - at(s.min)}%;background:${s.color}"></div>
-          <div class="absolute -top-1 h-5 w-1 rounded" style="left:calc(${at(s.price ?? lo)}% - 2px);background:${s.color}"></div></div>
-        <div class="num mt-3 flex justify-between text-xs"><span>mín ${usd(s.min)}</span><span style="color:${s.color}">actual ${s.price == null ? '—' : usd(s.price)}</span><span>máx ${usd(s.max)}</span></div></div>
+      <div class="card"><h2 class="mb-4 font-semibold">Rango${s ? ` de ${s.pair}` : ''}</h2>
+        ${s?.range ? `<div class="relative h-3 rounded bg-[#11131f]">
+          <div class="absolute h-3 rounded opacity-40" style="left:${at(s.range.lower)}%;width:${at(s.range.upper) - at(s.range.lower)}%;background:${s.color}"></div>
+          <div class="absolute -top-1 h-5 w-1 rounded" style="left:calc(${at(s.range.current)}% - 2px);background:${s.color}"></div></div>
+          <div class="num mt-3 flex justify-between text-xs"><span>mín ${fmtR(s.range.lower)}</span><span style="color:${s.color}">actual ${fmtR(s.range.current)}</span><span>máx ${fmtR(s.range.upper)}</span></div>
+          <div class="label mt-1">Precio en ${s.range.quoteLabel}</div>` : '<div class="label">Esta posición no tiene rango (pool V2) o no hay posiciones.</div>'}</div>
       <div class="card"><h2 class="mb-4 font-semibold">Exposición por activo</h2>
-        ${donut(Object.entries(expo).map(([label, value], i) => ({ label, value, color: COLORS[i % 6] })))}</div>
+        ${Object.keys(expo).length ? donut(Object.entries(expo).map(([label, value], i) => ({ label, value, color: COLORS[i % 6] }))) : '<div class="label">Sin datos</div>'}</div>
     </div>`;
 
-  root.querySelector('tbody').onclick = e => {
-    const tr = e.target.closest('tr'); if (tr) { sel = +tr.dataset.i; render(last); }
-  };
+  const tb = root.querySelector('tbody');
+  if (tb) tb.onclick = e => { const tr = e.target.closest('tr'); if (tr) { sel = +tr.dataset.i; render(last); } };
   root.querySelector('#pool-filter').oninput = e => {
     const q = e.target.value.toLowerCase();
     root.querySelectorAll('tbody tr').forEach(tr => (tr.hidden = !tr.dataset.q.includes(q)));

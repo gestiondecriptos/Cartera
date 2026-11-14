@@ -36,9 +36,8 @@ export const COINGECKO_IDS = {
   JITOSOL: 'jito-staked-sol', MSOL: 'msol', JUP: 'jupiter-exchange-solana', PSOL: 'phantom-staked-sol',
 };
 
-// Pools de liquidez: mientras sean datos de ejemplo NO se incluyen en el patrimonio ni en el histórico.
-// Cámbialo a true cuando los pools se lean de una fuente real.
-export const TRACK_POOLS = false;
+// Posiciones de pools de liquidez (Uniswap, PancakeSwap, Aerodrome…) de cada dirección EVM
+export const TRACKDEFI_URL = 'https://trackdefi.app/api/positions';
 
 // Fuentes públicas gratuitas por red (se pueden cambiar si una cae)
 export const CHAINS = {

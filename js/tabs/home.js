@@ -1,6 +1,4 @@
 import { usd, pct, stackedBar, donut, treemap, short } from '../format.js';
-import { analysePools } from './pools.js';
-import { TRACK_POOLS } from '../config.js';
 import { stakingData } from './staking.js';
 
 // Filtros del gráfico (se mantienen entre refrescos)
@@ -61,7 +59,7 @@ export function render(ctx) {
   const keys = [...new Set(full.flatMap(h => Object.keys(h.pos || {})))];
   const nets = [...new Set(keys.map(k => k.split('|')[0]))].sort(), assets = [...new Set(keys.map(k => k.split('|')[1]))].sort();
 
-  const pools = analysePools(market.prices), st = stakingData(ctx);
+  const pools = market.pools.positions, st = stakingData(ctx);
   const root = document.getElementById('home-root');
   root.innerHTML = `
     <div class="grid gap-4 lg:grid-cols-2">
@@ -79,8 +77,8 @@ export function render(ctx) {
       <div class="card"><h2 class="mb-3 font-semibold">Total por wallet</h2>${donut(wallets)}</div>
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
-      <div class="card scroll-x"><h2 class="mb-2 font-semibold">Pools de liquidez${TRACK_POOLS ? '' : ' (ejemplo)'}</h2><table class="tbl"><thead><tr><th>Par</th><th>Estado</th><th class="r">ROI neto</th></tr></thead><tbody>
-        ${pools.map(x => `<tr><td>${x.pair}<div class="label">${x.protocol}</div></td><td style="color:${x.color}">${x.status}</td><td class="num r">${pct(x.roiPct, 2)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="card scroll-x"><h2 class="mb-2 font-semibold">Pools de liquidez</h2><table class="tbl"><thead><tr><th>Par</th><th>Estado</th><th class="r">Valor</th></tr></thead><tbody>
+        ${pools.map(x => `<tr><td>${x.pair}<div class="label">${x.protocol}</div></td><td style="color:${x.color}">${x.status}</td><td class="num r">${usd(x.valueUsd)}</td></tr>`).join('') || '<tr><td colspan="3" class="label">Sin posiciones</td></tr>'}</tbody></table></div>
       <div class="card scroll-x"><h2 class="mb-2 font-semibold">Staking</h2><table class="tbl"><thead><tr><th>Token</th><th class="r">Valor</th><th class="r">APR</th></tr></thead><tbody>
         ${st.rows.map(x => `<tr><td>${x.sym}</td><td class="num r">${usd(x.value)}</td><td class="num r">${pct(x.apr, 2)}</td></tr>`).join('')}
         <tr><td class="label">Total / media ponderada</td><td class="num r">${usd(st.tvl)}</td><td class="num r">${pct(st.wApr, 2)}</td></tr></tbody></table></div>
