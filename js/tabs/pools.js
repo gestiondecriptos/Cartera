@@ -18,6 +18,12 @@ function analyse(p, prices) {
   return { ...p, price, tokens, total, status, color, roiPct, apr: roiPct * 365 / p.days, ilPct: p.ilUsd / p.invested * 100 };
 }
 
+export const analysePools = prices => MOCK_POOLS.map(p => analyse(p, prices));
+
+// Los pools cuentan en el patrimonio: cada token del pool se suma a su activo real (categoría «pools»)
+export const poolItems = () => MOCK_POOLS.flatMap(p => Object.entries(p.amounts).map(([symbol, amount]) =>
+  ({ symbol, amount, network: p.network, wallet: '0x34bC…890f', custody: 'metamask', category: 'pools' })));
+
 export function render(ctx) {
   last = ctx;
   const pools = MOCK_POOLS.map(p => analyse(p, ctx.market.prices));
