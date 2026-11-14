@@ -1,7 +1,7 @@
 import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory } from './data.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
-import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
+import { DUAL_ASSETS, CEX_ASSETS, WALLETS, TRACK_POOLS } from './config.js';
 import { short } from './format.js';
 import * as pools from './tabs/pools.js';
 import * as staking from './tabs/staking.js';
@@ -44,7 +44,7 @@ function refresh() {
   if (!market) return;
   bootMsg('');
   const state = store.getState();
-  const view = aggregateHoldings({ onchain: [...market.onchain, ...pools.poolItems()], state, prices: market.prices, eurUsd: market.eurUsd });
+  const view = aggregateHoldings({ onchain: [...market.onchain, ...(TRACK_POOLS ? pools.poolItems() : [])], state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
   const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
   const ctx = { view, state, market, ledger, history: historyData };
@@ -78,15 +78,20 @@ function renderInicio(view, fund, shares) {
       <td class="label">${[...new Set(h.sources.map(s => s.raw))].join(', ')}</td>
     </tr>`).join('');
 
+  const notes = [];
+  if (view.missing.length) notes.push(`Sin precio para: ${view.missing.join(', ')} (valoradas en 0).`);
+  if (market.chainFailed?.length) notes.push(`No se pudo leer: ${market.chainFailed.join(', ')}.`);
+  if (market.ignored?.length) notes.push(`Tokens ignorados (no reconocidos): ${market.ignored.slice(0, 12).join(', ')}${market.ignored.length > 12 ? '…' : ''}.`);
   const note = $('#missing-note');
-  note.hidden = !view.missing.length;
-  note.textContent = view.missing.length ? `Sin precio para: ${view.missing.join(', ')} (valoradas en 0).` : '';
+  note.hidden = !notes.length;
+  note.textContent = notes.join(' ');
 
   const s = market.sources;
   const badge = $('#data-badge');
-  const allLive = s.prices === 'live' && s.btc === 'live' && s.otherChains === 'live';
-  badge.className = `badge ${allLive ? 'live' : 'mock'}`;
-  badge.textContent = `precios: ${s.prices === 'live' ? 'reales' : 'simulados'} · BTC on-chain: ${s.btc === 'live' ? 'real' : 'simulado'} · otras redes: simulado`;
+  const NAMES = { prices: 'precios', btc: 'BTC', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', solana: 'Solana', tron: 'Tron', cosmos: 'Cosmos' };
+  const bad = Object.entries(s).filter(([, v]) => v !== 'live').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : 'simulado'}`);
+  badge.className = `badge ${bad.length ? 'mock' : 'live'}`;
+  badge.textContent = bad.length ? `Datos no reales: ${bad.join(', ')}` : 'Datos reales';
 }
 
 /* ---------- Pestaña 6: datos manuales ---------- */
