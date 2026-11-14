@@ -1,130 +1,86 @@
-// Métricas on-chain: datos de Bitview (bitview.space) y cálculos locales (MVRV, media 200 semanas, RSI, ATH, halvings)
-const BV = 'https://bitview.space/api';
-const DAY = 864e5;
-const START = '2010-08-17';          // primer día con precio
-const WEEKS200 = 200 * 7;            // 200 semanas en días
+import { loadMetrics, halvingInfo } from '../bitview.js';
+import { lineChart, thin } from '../charts.js';
+import { usd, pct, fmt } from '../format.js';
 
-const getJson = async url => {
-  const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
-  if (!r.ok) throw new Error(`${r.status} en ${url.replace(BV, '')}`);
-  return r.json();
-};
+let st = { status: 'idle' }, range = '4y';
+const RANGES = { '90d': 90, '1y': 365, '4y': 1460, Todo: Infinity };
+const ETF_URL = 'https://axeladlerjr.com/charts/bitcoin-etf-flow-monitor/';
+const dateEs = t => new Date(t).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+const unavailable = '<div class="label p-6">No disponible: la fuente no devolvió estos datos.</div>';
 
-/* ---------- Cálculos (funciones puras) ---------- */
-export const ffill = a => { let last = null; return a.map(v => (v == null ? last : (last = v))); };
+/** Carga las métricas la primera vez que se abre la pestaña */
+export function ensure() {
+  if (st.status !== 'idle') return;
+  st = { status: 'loading' };
+  render();
+  loadMetrics()
+    .then(data => { st = { status: 'ready', data }; render(); })
+    .catch(e => { st = { status: 'error', error: e.message }; render(); });
+}
 
-/** Media móvil simple de n valores; null hasta tener n valores */
-export function sma(vals, n) {
-  const f = ffill(vals), out = Array(f.length).fill(null);
-  let sum = 0, count = 0;
-  for (let i = 0; i < f.length; i++) {
-    if (f[i] == null) continue;
-    sum += f[i]; count++;
-    if (count > n) { sum -= f[i - n]; count--; }
-    if (count === n) out[i] = sum / n;
+function points(d, arr) {
+  const from = RANGES[range] === Infinity ? 0 : Date.now() - RANGES[range] * 864e5, out = [];
+  for (let i = 0; i < d.t.length; i++) if (d.t[i] >= from) out.push([d.t[i], arr[i]]);
+  return thin(out);
+}
+const has = arr => arr.some(v => v != null);
+
+export function render() {
+  const root = document.getElementById('metrics-root');
+  if (!root) return;
+  if (st.status === 'idle' || st.status === 'loading') { root.innerHTML = '<div class="card label">Cargando métricas de Bitview…</div>'; return; }
+  if (st.status === 'error') {
+    root.innerHTML = `<div class="card"><p class="neg">${st.error}</p><button id="m-retry" class="btn mt-3" type="button">Reintentar</button></div>`;
+    root.querySelector('#m-retry').onclick = () => { st = { status: 'idle' }; ensure(); };
+    return;
   }
-  return out;
-}
 
-/** RSI de Wilder (por defecto 14 periodos) */
-export function rsi(vals, n = 14) {
-  const f = ffill(vals), out = Array(f.length).fill(null);
-  const idx = f.map((v, i) => (v == null ? -1 : i)).filter(i => i >= 0);
-  if (idx.length <= n) return out;
-  let gain = 0, loss = 0;
-  for (let k = 1; k <= n; k++) { const d = f[idx[k]] - f[idx[k - 1]]; d >= 0 ? (gain += d) : (loss -= d); }
-  gain /= n; loss /= n;
-  const val = () => (loss === 0 ? (gain === 0 ? 50 : 100) : 100 - 100 / (1 + gain / loss));
-  out[idx[n]] = val();
-  for (let k = n + 1; k < idx.length; k++) {
-    const d = f[idx[k]] - f[idx[k - 1]];
-    gain = (gain * (n - 1) + Math.max(d, 0)) / n;
-    loss = (loss * (n - 1) + Math.max(-d, 0)) / n;
-    out[idx[k]] = val();
-  }
-  return out;
-}
+  const d = st.data, L = d.last;
+  const dd = d.ath.value ? (L.price / d.ath.value - 1) * 100 : null;
+  const ratio = L.ma200 ? L.price / L.ma200 : null;
+  const stat = (label, value, sub = '', tone = '') => `<div class="card"><div class="label">${label}</div><div class="num text-xl ${tone}">${value}</div><div class="label">${sub}</div></div>`;
+  const card = (title, note, body) => `<div class="card"><h2 class="font-semibold">${title}</h2><p class="label mb-3">${note}</p>${body}</div>`;
 
-const HALVING_DATES = { 1: '2012-11-28', 2: '2016-07-09', 3: '2020-05-11', 4: '2024-04-20' };
-/** Ciclo de halvings a partir de la altura de bloque actual (cada 210.000 bloques) */
-export function halvingInfo(tip, now = Date.now()) {
-  const epoch = Math.floor(tip / 210000), prevH = epoch * 210000, nextH = prevH + 210000;
-  const prevDate = HALVING_DATES[epoch] ? Date.parse(HALVING_DATES[epoch]) : now - (tip - prevH) * 600000;
-  const remBlocks = nextH - tip;
-  return {
-    tip, prevH, nextH, prevDate, remBlocks,
-    nextDate: now + remBlocks * 600000,                 // estimación a 10 min por bloque
-    progress: (tip - prevH) / 210000 * 100,
-    elapsedDays: (now - prevDate) / DAY, remainingDays: remBlocks * 10 / 1440,
-  };
-}
+  const hv = d.tip ? halvingInfo(d.tip) : null;
+  const halving = hv ? `
+    <div class="relative mt-6 h-3 rounded bg-[#11131f]">
+      <div class="absolute h-3 rounded bg-[#f7931a] opacity-60" style="width:${hv.progress.toFixed(2)}%"></div>
+      <div class="absolute -top-1 h-5 w-1 rounded bg-[#38bdf8]" style="left:calc(${hv.progress.toFixed(2)}% - 2px)"></div></div>
+    <div class="num mt-3 flex justify-between text-xs"><span>Anterior · ${dateEs(hv.prevDate)}<br>bloque ${fmt(hv.prevH)}</span><span class="text-center text-[#38bdf8]">${pct(hv.progress, 1)}<br>bloque ${fmt(hv.tip)}</span><span class="text-right">Próximo (est.) · ${dateEs(hv.nextDate)}<br>bloque ${fmt(hv.nextH)}</span></div>
+    <div class="mt-3 flex gap-6"><div><div class="label">Días transcurridos</div><div class="num text-xl">${fmt(Math.round(hv.elapsedDays))}</div></div>
+      <div><div class="label">Días restantes (est.)</div><div class="num text-xl">${fmt(Math.round(hv.remainingDays))}</div></div>
+      <div><div class="label">Bloques restantes</div><div class="num text-xl">${fmt(hv.remBlocks)}</div></div></div>` : '<div class="label p-6">No disponible: no se pudo leer la altura de bloque actual.</div>';
 
-/* ---------- Descarga ---------- */
-async function fetchDaily(name) {
-  const j = await getJson(`${BV}/series/${encodeURIComponent(name)}/day1?start=${START}`);
-  if (!Array.isArray(j.data) || !j.data.length) throw new Error(`${name}: sin datos`);
-  const guess = Date.UTC(2009, 0, 3) + (Number(j.start) || 0) * DAY;       // día 0 = bloque génesis
-  const t0 = Math.abs(guess - Date.parse(START)) <= 3 * DAY ? guess : Date.parse(START);
-  return { name, type: String(j.type || ''), t: j.data.map((_, i) => t0 + i * DAY), v: j.data.map(x => (x == null ? null : +x)) };
-}
+  root.innerHTML = `
+    <div class="flex flex-wrap items-center gap-2"><h2 class="mr-auto font-semibold">Rango de los gráficos</h2>
+      ${Object.keys(RANGES).map(r => `<button class="btn ${r === range ? '' : 'btn-ghost'}" data-mrange="${r}" type="button">${r}</button>`).join('')}</div>
+    ${d.errors.length ? `<p class="neg text-sm">No se pudo leer: ${d.errors.join(', ')}.</p>` : ''}
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      ${stat('MVRV', L.mvrv ? fmt(L.mvrv, { maximumFractionDigits: 2 }) : '—', 'precio ÷ precio realizado')}
+      ${stat('Precio realizado', L.realized ? usd(L.realized) : '—', 'coste medio on-chain')}
+      ${stat('Precio / media 200 sem.', ratio ? fmt(ratio, { maximumFractionDigits: 2 }) + '×' : '—', L.ma200 ? 'media: ' + usd(L.ma200) : '')}
+      ${stat('RSI diario (14)', L.rsi != null ? fmt(L.rsi, { maximumFractionDigits: 1 }) : '—', L.rsi >= 70 ? 'sobrecompra' : L.rsi <= 30 ? 'sobreventa' : 'zona neutral')}
+      ${stat('Caída desde máximo', dd == null ? '—' : pct(dd, 1), 'máx. ' + (d.ath.value ? usd(d.ath.value) : '—'), dd < 0 ? 'neg' : '')}
+    </div>
+    ${card('Precio y precio realizado', 'El precio realizado es el coste medio de todas las monedas en su último movimiento.', has(d.realized)
+      ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
+    ${card('MVRV', 'Precio de mercado ÷ precio realizado. Por debajo de 1, el mercado cotiza bajo el coste medio on-chain.', has(d.mvrv)
+      ? lineChart({ series: [{ label: 'MVRV', color: '#22c55e', pts: points(d, d.mvrv) }], lines: [{ y: 1, label: '1,0' }], yfmt: v => fmt(v, { maximumFractionDigits: 2 }) }) : unavailable)}
+    ${card('Media móvil de 200 semanas', 'Media de los últimos 1.400 días de precio: soporte histórico de largo plazo.', has(d.ma200)
+      ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Media 200 semanas', color: '#a78bfa', pts: points(d, d.ma200) }] }) : unavailable)}
+    ${card('RSI diario de 14 días', 'Calculado en tu navegador con los precios de cierre diarios (método de Wilder).', has(d.rsi)
+      ? lineChart({ domain: [0, 100], series: [{ label: 'RSI 14', color: '#fbbf24', pts: points(d, d.rsi) }], lines: [{ y: 70, label: '70' }, { y: 30, label: '30' }], height: 180, yfmt: v => fmt(v, { maximumFractionDigits: 0 }) }) : unavailable)}
+    <div class="grid gap-4 lg:grid-cols-2">
+      ${card('Caída desde máximos (ATH)', d.ath.value ? `Máximo histórico del ${dateEs(d.ath.t)}.` : '', dd == null ? unavailable : `
+        <div class="num text-3xl ${dd < 0 ? 'neg' : ''}">${pct(dd, 1)}</div>
+        <div class="relative mt-3 h-3 rounded bg-[#11131f]"><div class="absolute h-3 rounded bg-[#ef4444] opacity-70" style="width:${Math.min(100, Math.max(0, -dd)).toFixed(1)}%"></div></div>
+        <div class="num mt-2 flex justify-between text-xs"><span>${usd(L.price)}</span><span>máx ${usd(d.ath.value)}</span></div>`)}
+      ${card('Ciclo de halvings', 'Cada 210.000 bloques. La fecha del próximo halving es una estimación (10 min por bloque).', halving)}
+    </div>
+    ${card('Flujos netos de ETFs de Bitcoin', 'Gráfico de Axel Adler Jr, incrustado desde su web.', `
+      <iframe src="${ETF_URL}" title="Flujos de ETFs de Bitcoin (Axel Adler Jr)" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin" class="w-full rounded border border-[#2d3142]" style="height:640px"></iframe>
+      <p class="label mt-2">Si el recuadro aparece vacío, esa web no permite incrustarlo: <a class="text-[#38bdf8] underline" href="${ETF_URL}" target="_blank" rel="noopener noreferrer">ábrelo aquí</a>.</p>`)}
+    <p class="label">Datos on-chain: Bitview (bitview.space), licencia CC BY 4.0. Gráficos ETF: axeladlerjr.com. MVRV, media de 200 semanas y RSI se calculan localmente.</p>`;
 
-// Si el nombre exacto de la serie falla, se busca por palabras (la API lo permite)
-async function fetchDailyOrSearch(name, query, re) {
-  try { return await fetchDaily(name); }
-  catch (e) {
-    const list = await getJson(`${BV}/series/search?q=${encodeURIComponent(query)}&limit=30`).catch(() => []);
-    const alt = (Array.isArray(list) ? list : []).filter(n => re.test(n)).sort((a, b) => a.length - b.length)[0];
-    if (!alt) throw e;
-    return fetchDaily(alt);
-  }
-}
-
-const maxOf = a => a.reduce((m, x) => (x != null && x > m ? x : m), 0);
-const scale = (s, cents) => ({ ...s, v: s.v.map(x => (x == null ? null : cents ? x / 100 : x)) });
-
-async function fetchTip() {
-  for (const u of ['https://mempool.space/api/blocks/tip/height', `${BV}/blocks/tip/height`]) {
-    try {
-      const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
-      const n = r.ok ? parseInt(await r.text(), 10) : 0;
-      if (n > 0) return n;
-    } catch { /* siguiente fuente */ }
-  }
-  return null;
-}
-
-export async function loadMetrics() {
-  const [p, r, tip] = await Promise.allSettled([
-    fetchDailyOrSearch('price_close', 'price close', /(^|_)price_close$/),
-    fetchDailyOrSearch('realized_price', 'realized price', /^realized_price$|(^|_)realized_price$/),
-    fetchTip(),
-  ]);
-  if (p.status === 'rejected') throw new Error(`No se pudo leer el precio histórico de Bitview (${p.reason.message}).`);
-  const errors = [];
-
-  const priceCents = /cent/i.test(p.value.type) || maxOf(p.value.v) > 5e6;
-  const price = scale(p.value, priceCents);
-  const t = price.t, pv = price.v;
-
-  let realized = t.map(() => null);
-  if (r.status === 'fulfilled') {
-    const cents = /cent/i.test(r.value.type) || (priceCents && !/dollar/i.test(r.value.type));
-    const rs = scale(r.value, cents), map = new Map(rs.t.map((x, i) => [x, rs.v[i]]));
-    realized = t.map(x => map.get(x) ?? null);
-  } else errors.push('precio realizado y MVRV');
-
-  const mvrv = pv.map((v, i) => (v != null && realized[i] > 0 ? v / realized[i] : null));
-  const ma200 = sma(pv, WEEKS200);
-  const rsi14 = rsi(pv, 14);
-
-  let ath = { value: 0, t: 0 };
-  pv.forEach((v, i) => { if (v != null && v > ath.value) ath = { value: v, t: t[i] }; });
-  const lastIdx = pv.reduce((m, v, i) => (v != null ? i : m), -1);
-  const at = a => (lastIdx >= 0 ? a[lastIdx] : null);
-
-  return {
-    t, price: pv, realized, mvrv, ma200, rsi: rsi14, ath, errors,
-    last: { t: t[lastIdx], price: at(pv), realized: at(realized), mvrv: at(mvrv), ma200: at(ma200), rsi: at(rsi14) },
-    tip: tip.status === 'fulfilled' ? tip.value : null,
-  };
+  root.querySelectorAll('[data-mrange]').forEach(el => (el.onclick = () => { range = el.dataset.mrange; render(); }));
 }
