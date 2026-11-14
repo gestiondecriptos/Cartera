@@ -4,7 +4,9 @@ import { MOCK_STAKING_APR } from '../mock-data.js';
 const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE'];
 
 export function stakingData({ view, market }) {
-  const rows = TOKENS.map(sym => {
+  // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL, JitoSOL…)
+  const extra = view.holdings.filter(h => h.sources.some(s => s.category === 'staking')).map(h => h.symbol);
+  const rows = [...new Set([...TOKENS, ...extra])].map(sym => {
     const h = view.holdings.find(x => x.symbol === sym);
     const amount = (h?.sources || []).filter(s => s.category === 'staking').reduce((t, s) => t + s.amount, 0);
     const value = amount * (market.prices[sym]?.usd ?? 0);
