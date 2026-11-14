@@ -1,24 +1,27 @@
 // Motor contable: funciones puras (no tocan la pantalla ni localStorage).
-import { UNDERLYING } from './config.js';
+import { UNDERLYING, COINGECKO_IDS, LIQUID_STAKING } from './config.js';
 
 // Prefijos de red que Aave v3 añade al nombre del aToken (aEthWETH, aBasWETH, aArbUSDC…)
-const NET_RE = /^(Eth|Bas|Arb|Opt|Pol|Avax|Bnb|Gno|Scr|Lin|Mnt|Son)(?=[A-Za-z])/;
+const NET_RE = /^(Eth|Bas|Arb|Opt|Pol|Avax|Bnb|Gno|Scr|Lin|Mnt|Son|Uni)(?=[A-Za-z])/i;
+const known = k => k in COINGECKO_IDS || k in UNDERLYING || k === 'EUR';
+// quita el prefijo de red solo si lo que queda es un activo conocido (así «LINK» no pierde «LIN»)
+const strip = x => (known(x) ? x : known(x.replace(NET_RE, '')) ? x.replace(NET_RE, '') : x);
 
 /**
  * Normaliza un símbolo:
- *  aEthWETH -> ETH, aLINK -> LINK, aAAVE -> AAVE   (colateral, suma al subyacente)
- *  variableDebtEthUSDC -> USDC con signo negativo   (deuda)
+ *  aEthWETH, AWETH -> ETH · aLINK, ALINK -> LINK · aAAVE, AAAVE -> AAVE   (colateral, suma al subyacente)
+ *  variableDebtArbUSDCn -> USDC con signo negativo                       (deuda)
  *  WETH -> ETH, BTCB/WBTC -> BTC
  */
 export function normalizeSymbol(raw) {
   let s = String(raw).trim(), sign = 1, aToken = false;
-  const debt = s.match(/^(?:variable|stable)Debt(.+)$/);
+  const debt = s.match(/^(?:variable|stable)debt(.+)$/i);
   if (debt) {
     sign = -1;
-    s = debt[1].replace(NET_RE, '');
-  } else if (/^a[A-Z]/.test(s)) {
-    aToken = true;
-    s = s.slice(1).replace(NET_RE, '');
+    s = strip(debt[1]);
+  } else if (!known(s) && /^[aA][A-Z]/.test(s)) {
+    const rest = strip(s.slice(1));
+    if (/^a/.test(s) || known(rest)) { aToken = true; s = rest; }   // «aXxx» siempre; «AXXX» solo si lo que sigue es un activo conocido
   }
   return { symbol: UNDERLYING[s] || s, sign, aToken };
 }
@@ -46,17 +49,19 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
   for (const it of items) {
     if (!it.amount) continue;
     const n = normalizeSymbol(it.symbol);
-    const px = priceUsd(n.symbol, prices, eurUsd) ?? it.priceUsd ?? null; // priceUsd del item: respaldo para tokens sin precio propio
-    if (px == null) missing.add(n.symbol);
-    const amount = it.amount * n.sign;
+    let symbol = n.symbol, amount = it.amount * n.sign;
+    let px = priceUsd(symbol, prices, eurUsd) ?? it.priceUsd ?? null; // priceUsd del item: respaldo para tokens sin precio propio
+    const base = LIQUID_STAKING[symbol];                              // p. ej. PSOL -> SOL (cantidad equivalente, mismo valor)
+    if (base && prices[symbol]?.usd && prices[base]?.usd) { amount *= prices[symbol].usd / prices[base].usd; symbol = base; px = prices[base].usd; }
+    if (px == null) missing.add(symbol);
     const usd = amount * (px ?? 0);
     const category = n.sign < 0 ? 'deuda' : n.aToken ? 'colateral' : it.category || 'libre';
 
-    const h = map.get(n.symbol) ?? { symbol: n.symbol, amount: 0, usd: 0, sources: [] };
+    const h = map.get(symbol) ?? { symbol, amount: 0, usd: 0, sources: [] };
     h.amount += amount;
     h.usd += usd;
     h.sources.push({ raw: it.symbol, amount, usd, network: it.network, custody: it.custody, category });
-    map.set(n.symbol, h);
+    map.set(symbol, h);
 
     add(by.category, category, usd);
     add(by.custody, it.custody, usd);

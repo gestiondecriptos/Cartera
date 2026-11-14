@@ -22,7 +22,17 @@ export const DUAL_ASSETS = ['BTCB', 'ETH', 'BNB', 'USDT'];
 export const CEX_ASSETS = ['BTC', 'ETH', 'BNB', 'USDC', 'USDT', 'EUR', 'NEXO', 'OKB'];
 
 // Tokens envueltos que se suman a su activo real en el total global
-export const UNDERLYING = { WETH: 'ETH', WBNB: 'BNB', BTCB: 'BTC', WBTC: 'BTC', sPENDLE: 'PENDLE', SPENDLE: 'PENDLE' }; // sPENDLE = PENDLE en staking, 1:1
+export const UNDERLYING = {
+  WETH: 'ETH', WBNB: 'BNB', BTCB: 'BTC', WBTC: 'BTC',
+  sPENDLE: 'PENDLE', SPENDLE: 'PENDLE',                       // sPENDLE = PENDLE en staking, 1:1
+  USDCn: 'USDC', USDCN: 'USDC', USDbC: 'USDC', USDBC: 'USDC', 'USDC.e': 'USDC', // variantes de USDC
+};
+
+// Tokens de staking líquido que se muestran como su activo base (cantidad equivalente = valor ÷ precio del activo base)
+export const LIQUID_STAKING = { PSOL: 'SOL' };
+
+// Pools que NO forman parte de la cartera (por nombre exacto del par en TrackDeFi)
+export const IGNORE_POOLS = ['8LNDS/USDC'];
 
 // Tokens de recibo de staking que se cuentan en la categoría «staking»
 export const STAKING_SYMBOLS = ['SPENDLE'];
@@ -33,7 +43,7 @@ export const COINGECKO_IDS = {
   SKY: 'sky', AAVE: 'aave', NEXO: 'nexo', OKB: 'okb', TRX: 'tron', HYPE: 'hyperliquid',
   ATOM: 'cosmos', USDC: 'usd-coin', USDT: 'tether', SYRUP: 'syrup', PENDLE: 'pendle',
   CAKE: 'pancakeswap-token', WBTC: 'wrapped-bitcoin', BTCB: 'binance-bitcoin',
-  JITOSOL: 'jito-staked-sol', MSOL: 'msol', JUP: 'jupiter-exchange-solana', PSOL: 'phantom-staked-sol',
+  JITOSOL: 'jito-staked-sol', MSOL: 'msol', JUP: 'jupiter-exchange-solana', PSOL: 'phantom-staked-sol', ARB: 'arbitrum',
 };
 
 // Posiciones de pools de liquidez (Uniswap, PancakeSwap, Aerodrome…) de cada dirección EVM
@@ -45,6 +55,7 @@ export const CHAINS = {
     { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com' },
     { name: 'Base', native: 'ETH', api: 'https://base.blockscout.com' },
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com' },
+    { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
   // se prueban en orden hasta que uno responda

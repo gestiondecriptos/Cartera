@@ -5,7 +5,7 @@ export const MOCK_EUR_USD = 1.08;
 const USD = {
   BTC: 95000, ETH: 3300, BNB: 620, SOL: 180, LINK: 18, SKY: 0.06, AAVE: 230, NEXO: 1.2,
   OKB: 50, TRX: 0.25, HYPE: 28, ATOM: 6, USDC: 1, USDT: 1, SYRUP: 0.4, PENDLE: 4.5,
-  CAKE: 2.5, WBTC: 95000, BTCB: 95000, PSOL: 190, JITOSOL: 215, MSOL: 230, JUP: 0.5,
+  CAKE: 2.5, WBTC: 95000, BTCB: 95000, PSOL: 190, JITOSOL: 215, MSOL: 230, JUP: 0.5, ARB: 0.4,
 };
 
 export const MOCK_PRICES = Object.fromEntries(
@@ -34,7 +34,7 @@ export const MOCK_OTHER_ONCHAIN = [
 ];
 
 // APR de staking de ejemplo (%). Fase 3: sustituir por datos reales.
-export const MOCK_STAKING_APR = { SKY: 6.5, TRX: 4.5, HYPE: 2.2, ATOM: 15, PENDLE: 10, PSOL: 7, JITOSOL: 7, MSOL: 7 };
+export const MOCK_STAKING_APR = { SKY: 6.5, TRX: 4.5, HYPE: 2.2, ATOM: 15, PENDLE: 10, SOL: 7, PSOL: 7, JITOSOL: 7, MSOL: 7 };
 
 // Pools de liquidez de EJEMPLO (TrackDeFi se conectará más adelante).
 // base/quote: el precio del par = precio(base) / precio(quote). IL, ROI y días son de ejemplo.

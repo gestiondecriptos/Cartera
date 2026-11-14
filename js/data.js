@@ -48,7 +48,7 @@ async function fetchBtcOnchain(addresses) {
 
 // Redes de cada familia: si TODA una familia falla se usan datos simulados de esa familia (y se avisa)
 const FAMILY_NETWORKS = {
-  evm: ['Ethereum', 'Base', 'Optimism', 'Arbitrum'], bsc: ['BSC'], hyperliquid: ['Hyperliquid'], solana: ['Solana'], tron: ['Tron'], cosmos: ['Cosmos'],
+  evm: ['Ethereum', 'Base', 'Arbitrum', 'Unichain'], bsc: ['BSC'], hyperliquid: ['Hyperliquid'], solana: ['Solana'], tron: ['Tron'], cosmos: ['Cosmos'],
 };
 
 export async function loadMarketData(btcAddresses = WALLETS.btc) {

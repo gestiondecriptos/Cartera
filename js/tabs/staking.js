@@ -1,7 +1,7 @@
 import { usd, qty, pct } from '../format.js';
 import { MOCK_STAKING_APR } from '../mock-data.js';
 
-const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE'];
+const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'];
 
 export function stakingData({ view, market }) {
   // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL, JitoSOL…)

@@ -1,5 +1,5 @@
 // Pools de liquidez reales: API de TrackDeFi (https://trackdefi.app/api/positions?address=...)
-import { WALLETS, TRACKDEFI_URL, COINGECKO_IDS } from './config.js';
+import { WALLETS, TRACKDEFI_URL, COINGECKO_IDS, IGNORE_POOLS } from './config.js';
 
 const CHAIN_NAMES = { 1: 'Ethereum', 10: 'Optimism', 56: 'BSC', 130: 'Unichain', 137: 'Polygon', 8453: 'Base', 42161: 'Arbitrum', 43114: 'Avalanche', 42220: 'Celo', 999: 'Hyperliquid' };
 const short = a => a.slice(0, 6) + '…' + a.slice(-4);
@@ -15,7 +15,7 @@ function analyse(range, tokens) {
 
 /** Convierte la respuesta de TrackDeFi de una dirección en posiciones listas para pintar y contabilizar */
 export function parsePositions(raw, wallet) {
-  return (raw?.positions || []).map(p => {
+  return (raw?.positions || []).filter(p => !IGNORE_POOLS.includes(p.poolSymbol)).map(p => {
     const tokens = [p.token0, p.token1].filter(Boolean).map(t => ({ symbol: canon(t.symbol), amount: +t.amount || 0, valueUsd: +t.valueUsd || 0, priceUsd: +t.priceUsd || null }));
     const rewards = (p.rewards || []).map(r => ({ symbol: canon(r.symbol), kind: r.kind, amount: +r.amount || 0, valueUsd: +r.valueUsd || 0, priceUsd: +r.priceUsd || null }));
     const range = p.range ? { inRange: !!p.range.inRange, lower: +p.range.lower, upper: +p.range.upper, current: +p.range.current, quoteLabel: p.range.quoteLabel || '' } : null;

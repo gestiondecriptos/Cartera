@@ -7,13 +7,14 @@ const get = async (url, opts = {}) => {
   let err;
   for (let i = 0; i < 3; i++) {
     try {
-      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(15000) });
+      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
       if (r.ok) return await r.json();
       err = new Error(String(r.status));
       if (r.status !== 429 && r.status < 500) throw err;
     } catch (e) {
       if (e === err) throw e;
       err = e;
+      if (i >= 1) break;                          // fallos de red/tiempo: solo un reintento
     }
     await new Promise(res => setTimeout(res, 800 * (i + 1)));
   }
@@ -47,7 +48,7 @@ const push = (out, base, symbol, amount, category) => {
   out.items.push({ ...base, symbol, amount, ...(cat ? { category: cat } : {}) });
 };
 
-/* ---- EVM: Ethereum, Base, Optimism, Arbitrum (Blockscout) ---- */
+/* ---- EVM: redes de CHAINS.evm en config.js (Blockscout) ---- */
 export const fetchEvm = () => eachUnit(
   WALLETS.evm.flatMap(w => CHAINS.evm.map(net => ({ w, net, label: `${net.name} ${short(w.address)}` }))),
   async ({ w, net }, out) => {
@@ -96,31 +97,34 @@ export const fetchHyperliquid = () => eachUnit(
 
 /* ---- Solana: SOL + tokens SPL (solo los de config.js) ---- */
 async function rpc(method, params) {
-  let err;
+  const errs = [];
   for (const url of CHAINS.solanaRpc) {
     try {
       const j = await post(url, { jsonrpc: '2.0', id: 1, method, params });
       if (j.error) throw new Error(j.error.message);
       return j.result;
-    } catch (e) { err = e; }                       // prueba el siguiente servidor
+    } catch (e) { errs.push(`${new URL(url).hostname}: ${why(e)}`); }   // prueba el siguiente servidor
   }
-  throw err;
+  throw new Error(errs.join('; '));
 }
 export const fetchSolana = () => eachUnit(
   WALLETS.solana.map(a => ({ a, label: `Solana ${short(a)}` })),
   async ({ a }, out) => {
-    const [bal, tok] = await Promise.all([
+    // una consulta por token conocido (más ligera y compatible con los servidores públicos que una búsqueda general)
+    const mints = Object.keys(CHAINS.solanaMints);
+    const [bal, ...toks] = await Promise.all([
       rpc('getBalance', [a]),
-      rpc('getTokenAccountsByOwner', [a, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }]),
+      ...mints.map(mint => rpc('getTokenAccountsByOwner', [a, { mint }, { encoding: 'jsonParsed' }])),
     ]);
     const base = { network: 'Solana', wallet: short(a), custody: 'phantom' };
     push(out, base, 'SOL', (bal.value || 0) / 1e9);
-    for (const { account } of tok.value || []) {
-      const info = account?.data?.parsed?.info, m = CHAINS.solanaMints[info?.mint];
-      const amount = Number(info?.tokenAmount?.uiAmountString ?? info?.tokenAmount?.uiAmount ?? 0);
-      if (m) push(out, base, m.symbol, amount, m.category);
-      else if (amount > 0) out.ignored.push(short(info?.mint || '?'));
-    }
+    toks.forEach((t, i) => {
+      const m = CHAINS.solanaMints[mints[i]];
+      for (const { account } of t.value || []) {
+        const ta = account?.data?.parsed?.info?.tokenAmount;
+        push(out, base, m.symbol, Number(ta?.uiAmountString ?? ta?.uiAmount ?? 0), m.category);
+      }
+    });
   });
 
 /* ---- Tron: TRX, TRX en staking (Stake 2.0 y 1.0) y TRC-20 ---- */
