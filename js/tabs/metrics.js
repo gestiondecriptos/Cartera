@@ -5,6 +5,7 @@ import { usd, pct, fmt } from '../format.js';
 let st = { status: 'idle' }, range = '4y';
 const RANGES = { '90d': 90, '1y': 365, '4y': 1460, Todo: Infinity };
 const ETF_URL = 'https://axeladlerjr.com/charts/bitcoin-etf-flow-monitor/';
+const ETF_EMBED = ETF_URL + 'embed.html'; // código de incrustación oficial de Axel Adler Jr
 const dateEs = t => new Date(t).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
 const unavailable = '<div class="label p-6">No disponible: la fuente no devolvió estos datos.</div>';
 
@@ -78,8 +79,8 @@ export function render() {
       ${card('Ciclo de halvings', 'Cada 210.000 bloques. La fecha del próximo halving es una estimación (10 min por bloque).', halving)}
     </div>
     ${card('Flujos netos de ETFs de Bitcoin', 'Gráfico de Axel Adler Jr, incrustado desde su web.', `
-      <iframe src="${ETF_URL}" title="Flujos de ETFs de Bitcoin (Axel Adler Jr)" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin" class="w-full rounded border border-[#2d3142]" style="height:640px"></iframe>
-      <p class="label mt-2">Si el recuadro aparece vacío, esa web no permite incrustarlo: <a class="text-[#38bdf8] underline" href="${ETF_URL}" target="_blank" rel="noopener noreferrer">ábrelo aquí</a>.</p>`)}
+      <iframe src="${ETF_EMBED}" width="100%" height="640" style="border:0" loading="lazy" title="Bitcoin ETF Flows"></iframe>
+      <p class="label mt-2">Fuente: <a class="text-[#38bdf8] underline" href="${ETF_URL}" target="_blank" rel="noopener noreferrer">Bitcoin ETF Flows</a> (axeladlerjr.com).</p>`)}
     <p class="label">Datos on-chain: Bitview (bitview.space), licencia CC BY 4.0. Gráficos ETF: axeladlerjr.com. MVRV, media de 200 semanas y RSI se calculan localmente.</p>`;
 
   root.querySelectorAll('[data-mrange]').forEach(el => (el.onclick = () => { range = el.dataset.mrange; render(); }));
