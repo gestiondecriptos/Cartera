@@ -44,7 +44,6 @@ export const CHAINS = {
   evm: [
     { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com' },
     { name: 'Base', native: 'ETH', api: 'https://base.blockscout.com' },
-    { name: 'Optimism', native: 'ETH', api: 'https://optimism.blockscout.com' },
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
