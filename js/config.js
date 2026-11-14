@@ -48,7 +48,8 @@ export const CHAINS = {
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
-  solanaRpc: 'https://solana-rpc.publicnode.com',
+  // se prueban en orden hasta que uno responda
+  solanaRpc: ['https://solana-rpc.publicnode.com', 'https://api.mainnet-beta.solana.com', 'https://solana.drpc.org'],
   // mint de cada token SPL que quieres reconocer (los demás se ignoran)
   solanaMints: {
     EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: { symbol: 'USDC' },
