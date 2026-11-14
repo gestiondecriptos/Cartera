@@ -3,7 +3,7 @@ import { MOCK_STAKING_APR } from '../mock-data.js';
 
 const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE'];
 
-export function render({ view, market }) {
+export function stakingData({ view, market }) {
   const rows = TOKENS.map(sym => {
     const h = view.holdings.find(x => x.symbol === sym);
     const amount = (h?.sources || []).filter(s => s.category === 'staking').reduce((t, s) => t + s.amount, 0);
@@ -15,6 +15,11 @@ export function render({ view, market }) {
   const wApr = tvl ? rows.reduce((t, r) => t + r.value * r.apr, 0) / tvl : 0;
   const daily = rows.reduce((t, r) => t + r.daily, 0);
 
+  return { rows, tvl, wApr, daily };
+}
+
+export function render(ctx) {
+  const { rows, tvl, wApr, daily } = stakingData(ctx);
   document.getElementById('staking-root').innerHTML = `
     <div class="grid gap-3 sm:grid-cols-3">
       <div class="card"><div class="label">TVL en staking</div><div class="num text-2xl text-[#38bdf8]">${usd(tvl)}</div></div>
