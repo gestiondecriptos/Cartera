@@ -24,5 +24,31 @@
    "Base|USDC": 10995.84
   },
   "partial": true
+ },
+ {
+  "t": "2026-11-14T10:17:14.428Z",
+  "totalUsd": 53164.19,
+  "totalEur": 48227.57,
+  "fundUsd": 293.72,
+  "fundEur": 266.45,
+  "btcUsd": 67190,
+  "shares": 181,
+  "pos": {
+   "Ethereum|ETH": 17915.27,
+   "Hyperliquid|HYPE": 10387.5,
+   "Ethereum|LINK": 7696,
+   "Tron|TRX": 6268.84,
+   "Solana|SOL": 3029.2,
+   "BSC|BNB": 2468.4,
+   "Ethereum|AAVE": 2146.4,
+   "Ethereum|PENDLE": 1510,
+   "BSC|USDT": 1498.84,
+   "Bitcoin|BTC": 1202.86,
+   "Cosmos|ATOM": 670,
+   "Ethereum|SKY": 569.99,
+   "Ethereum|USDC": -13194.67,
+   "Base|USDC": 10995.56
+  },
+  "partial": true
  }
 ]
