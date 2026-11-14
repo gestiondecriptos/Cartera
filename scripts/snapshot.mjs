@@ -1,6 +1,6 @@
 // Snapshot del patrimonio -> data/history.json. Lo ejecuta GitHub Actions (Node 20), sin navegador.
 import fs from 'node:fs';
-import { WALLETS, INITIAL_SHARES } from '../js/config.js';
+import { WALLETS, INITIAL_SHARES, TRACK_POOLS } from '../js/config.js';
 import { loadMarketData } from '../js/data.js';
 import { aggregateHoldings, fundPrice } from '../js/accounting.js';
 import { poolItems } from '../js/tabs/pools.js';
@@ -24,20 +24,24 @@ if (s.prices !== 'live' || s.btc !== 'live') {
 }
 const partial = Object.values(s).some(v => v !== 'live');
 if (partial && process.env.INCLUDE_PARTIAL !== 'true') {
-  console.log('Hay fuentes simuladas (', s, '): no se guarda el snapshot para no contaminar el histórico.');
+  console.log('Hay fuentes simuladas o con lecturas fallidas (', s, '): no se guarda el snapshot para no contaminar el histórico.');
   process.exit(0);
 }
 
-const view = aggregateHoldings({ onchain: [...market.onchain, ...poolItems()], state, prices: market.prices, eurUsd: market.eurUsd });
+const view = aggregateHoldings({ onchain: [...market.onchain, ...(TRACK_POOLS ? poolItems() : [])], state, prices: market.prices, eurUsd: market.eurUsd });
 const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
-const pos = {};
-for (const h of view.holdings) for (const x of h.sources) pos[`${x.network}|${h.symbol}`] = (pos[`${x.network}|${h.symbol}`] || 0) + x.usd;
-for (const k in pos) pos[k] = Math.round(pos[k] * 100) / 100;
+const pos = {}, qty = {}; // pos = valor en USD, qty = cantidad de cada activo, por «red|activo»
+for (const h of view.holdings) for (const x of h.sources) {
+  const k = `${x.network}|${h.symbol}`;
+  pos[k] = (pos[k] || 0) + x.usd;
+  qty[k] = (qty[k] || 0) + x.amount;
+}
+for (const k in pos) { pos[k] = Math.round(pos[k] * 100) / 100; qty[k] = Math.round(qty[k] * 1e8) / 1e8; }
 
 const entry = {
   t: new Date().toISOString(), totalUsd: Math.round(view.totalUsd * 100) / 100, totalEur: Math.round(view.totalEur * 100) / 100,
   fundUsd: Math.round(fund.usd * 100) / 100, fundEur: Math.round(fund.eur * 100) / 100,
-  btcUsd: market.prices.BTC.usd, shares, pos, partial,
+  btcUsd: market.prices.BTC.usd, shares, pos, qty, partial,
 };
 const history = readJson('data/history.json', []);
 history.push(entry);
