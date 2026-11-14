@@ -33,3 +33,23 @@ export function donut(parts, size = 150) {
 }
 
 export const short = a => (a.length > 16 ? a.slice(0, 8) + '…' + a.slice(-4) : a);
+
+/** Treemap simple (sin librerías): items = [{label, value}] */
+export function treemap(items, height = 280) {
+  const data = items.filter(i => i.value > 0).sort((a, b) => b.value - a.value);
+  const total = data.reduce((t, i) => t + i.value, 0);
+  if (!total) return '<div class="label">Sin datos</div>';
+  const out = [];
+  (function lay(list, x, y, w, h) {
+    if (list.length === 1) return out.push({ ...list[0], x, y, w, h });
+    const sum = list.reduce((t, i) => t + i.value, 0);
+    let acc = 0, k = 0;
+    while (k < list.length - 1 && acc + list[k].value <= sum / 2) acc += list[k++].value;
+    if (k === 0) acc = list[k++].value;
+    const r = acc / sum, a = list.slice(0, k), b = list.slice(k);
+    if (w >= h) { lay(a, x, y, w * r, h); lay(b, x + w * r, y, w * (1 - r), h); }
+    else { lay(a, x, y, w, h * r); lay(b, x, y + h * r, w, h * (1 - r)); }
+  })(data, 0, 0, 100, 100);
+  return `<div style="position:relative;height:${height}px">${out.map((n, i) =>
+    `<div title="${n.label}: ${pct(n.value / total * 100)}" style="position:absolute;left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%;padding:1px"><div style="background:${COLORS[i % 6]};opacity:.85;height:100%;border-radius:3px;overflow:hidden;color:#0b0d16;font-size:.7rem;padding:3px 5px">${n.w * n.h > 350 ? `${n.label}<br><b class="num">${pct(n.value / total * 100, 0)}</b>` : ''}</div></div>`).join('')}</div>`;
+}
