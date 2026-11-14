@@ -1,4 +1,4 @@
-import { loadMarketData, loadWalletsFile, loadBtcLedger } from './data.js';
+import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory } from './data.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
 import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
@@ -6,6 +6,7 @@ import { short } from './format.js';
 import * as pools from './tabs/pools.js';
 import * as staking from './tabs/staking.js';
 import * as bitcoin from './tabs/bitcoin.js';
+import * as home from './tabs/home.js';
 
 const $ = s => document.querySelector(s);
 const fmt = (n, o) => n.toLocaleString('es-ES', o);
@@ -16,6 +17,7 @@ const cls = n => (n < 0 ? 'neg' : '');
 
 let market = null;
 let ledger = [];
+let historyData = [];
 let fileAddrs = [];
 const allAddrs = () => [...new Set([...WALLETS.btc, ...fileAddrs, ...store.getState().btcAddresses])];
 
@@ -40,12 +42,13 @@ function refresh() {
   if (!market) return;
   bootMsg('');
   const state = store.getState();
-  const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
+  const view = aggregateHoldings({ onchain: [...market.onchain, ...pools.poolItems()], state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
   const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
-  const ctx = { view, state, market, ledger };
+  const ctx = { view, state, market, ledger, history: historyData };
   // Si una pestaña falla, las demás siguen funcionando y se avisa en pantalla
   [['Inicio', () => renderInicio(view, fund, shares)],
+   ['Inicio (gráficos)', () => home.render(ctx)],
    ['Datos manuales', () => renderManual(state, view, fund, shares)],
    ['Pools', () => pools.render(ctx)],
    ['Staking', () => staking.render(ctx)],
@@ -177,6 +180,12 @@ $('#manual-root').addEventListener('click', e => {
   if (delDca) store.removeDca(delDca);
   if (delAddr) store.removeBtcAddress(delAddr);
 });
+$('#export-btn').addEventListener('click', async () => {
+  const { dual, cex, shares } = store.getState();
+  const json = JSON.stringify({ dual, cex, shares }, null, 2);
+  try { await navigator.clipboard.writeText(json); $('#export-msg').textContent = 'Copiado. Pégalo en data/manual.json de tu repositorio.'; }
+  catch { prompt('Copia este texto y pégalo en data/manual.json:', json); }
+});
 $('#reset-btn').addEventListener('click', () => {
   if (confirm('¿Borrar todos los datos manuales? No se puede deshacer.')) store.resetAll();
 });
@@ -195,3 +204,4 @@ function sync() {
 store.subscribe(sync);
 showTab(location.hash.slice(1) || 'inicio');
 loadWalletsFile().then(a => { fileAddrs = a; sync(); });
+loadHistory().then(h => { historyData = h; refresh(); });
