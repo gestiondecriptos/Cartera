@@ -111,3 +111,9 @@ export async function loadBtcLedger(addresses, onUpdate) {
     } catch (e) { console.warn('Compras no disponibles para', a, e.message); }
   }
 }
+
+/** Histórico guardado por GitHub Actions (data/history.json) */
+export async function loadHistory() {
+  try { const j = await get('data/history.json'); return Array.isArray(j) ? j : []; }
+  catch { return []; }
+}
