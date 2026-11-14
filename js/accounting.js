@@ -55,7 +55,7 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     const h = map.get(n.symbol) ?? { symbol: n.symbol, amount: 0, usd: 0, sources: [] };
     h.amount += amount;
     h.usd += usd;
-    h.sources.push({ raw: it.symbol, amount, network: it.network, custody: it.custody, category });
+    h.sources.push({ raw: it.symbol, amount, usd, network: it.network, custody: it.custody, category });
     map.set(n.symbol, h);
 
     add(by.category, category, usd);
