@@ -7,6 +7,7 @@ import * as pools from './tabs/pools.js';
 import * as staking from './tabs/staking.js';
 import * as bitcoin from './tabs/bitcoin.js';
 import * as home from './tabs/home.js';
+import * as metrics from './tabs/metrics.js';
 
 const $ = s => document.querySelector(s);
 const fmt = (n, o) => n.toLocaleString('es-ES', o);
@@ -28,6 +29,7 @@ function showTab(id) {
   tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === id)));
   document.querySelectorAll('.tab-panel').forEach(p => (p.hidden = p.id !== `tab-${id}`));
   history.replaceState(null, '', `#${id}`);
+  if (id === 'metricas') metrics.ensure(); // las métricas se descargan al abrir la pestaña
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
