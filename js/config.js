@@ -101,6 +101,6 @@ export const APR_SOURCES = {
 // Claves de API (opcionales): pégalas entre las comillas.
 // ATENCIÓN: este archivo es público en GitHub, así que cualquiera podría ver y usar tus claves. Usa planes gratuitos y, si las ves usadas por otros, genera claves nuevas.
 export const API_KEYS = {
-  HELIUS_API_KEY: '',   // Solana (https://dashboard.helius.dev)
+  HELIUS_API_KEY: '0b694547-bd4c-4300-a17a-bbe47c4fb772',   // Solana (https://dashboard.helius.dev)
   MORALIS_API_KEY: '',  // EVM: Base, Ethereum y Arbitrum (https://admin.moralis.com)
 };
