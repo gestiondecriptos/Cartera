@@ -1,5 +1,5 @@
 // Capa de datos: intenta la API real y, si falla (CORS, límite de peticiones, sin red), usa datos simulados.
-import { WALLETS, COINGECKO_IDS } from './config.js';
+import { WALLETS, COINGECKO_IDS, APR_SOURCES } from './config.js';
 import { loadChains } from './chains.js';
 import { fetchPools, poolItems } from './trackdefi.js';
 import { MOCK_PRICES, MOCK_EUR_USD, MOCK_BTC_ONCHAIN, MOCK_OTHER_ONCHAIN } from './mock-data.js';
@@ -128,4 +128,25 @@ export async function loadBtcLedger(addresses, onUpdate) {
 export async function loadHistory() {
   try { const j = await get('data/history.json'); return Array.isArray(j) ? j : []; }
   catch { return []; }
+}
+
+/**
+ * APR de staking desde DefiLlama (API pública de yields). Se guarda 12 h en el navegador.
+ * Si la API no responde o ya no es gratuita, devuelve {} y se usan los APR manuales o de ejemplo.
+ */
+export async function loadStakingApr() {
+  const KEY = 'cripto-dashboard:apr';
+  try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.t < 12 * 3600e3) return c.aprs; } catch { /* sin caché */ }
+  try {
+    const r = await fetch('https://yields.llama.fi/pools', { signal: AbortSignal.timeout(40000) });
+    if (!r.ok) throw new Error(String(r.status));
+    const pools = (await r.json()).data || [];
+    const aprs = {};
+    for (const [sym, f] of Object.entries(APR_SOURCES)) {
+      const hit = pools.filter(p => p.project === f.project && p.symbol === f.symbol && p.chain === f.chain).sort((a, b) => b.tvlUsd - a.tvlUsd)[0];
+      if (hit && Number.isFinite(hit.apy)) aprs[sym] = hit.apy;
+    }
+    if (Object.keys(aprs).length) try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), aprs })); } catch { /* sin almacenamiento */ }
+    return aprs;
+  } catch (e) { console.warn('DefiLlama no disponible:', e.message); return {}; }
 }

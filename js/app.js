@@ -1,4 +1,5 @@
-import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory } from './data.js';
+import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory, loadStakingApr } from './data.js';
+import { KEY_NAMES, readKeys, setKeys } from './keys.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
 import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
@@ -19,6 +20,7 @@ const cls = n => (n < 0 ? 'neg' : '');
 let market = null;
 let ledger = [];
 let historyData = [];
+let aprLive = {}, aprTried = false;
 let fileAddrs = [];
 const allAddrs = () => [...new Set([...WALLETS.btc, ...fileAddrs, ...store.getState().btcAddresses])];
 
@@ -30,6 +32,7 @@ function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => (p.hidden = p.id !== `tab-${id}`));
   history.replaceState(null, '', `#${id}`);
   if (id === 'metricas') metrics.ensure(); // las métricas se descargan al abrir la pestaña
+  if (id === 'staking' && !aprTried) { aprTried = true; loadStakingApr().then(a => { aprLive = a; refresh(); }); } // APR de DefiLlama al abrir Staking
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
@@ -47,7 +50,7 @@ function refresh() {
   const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
   const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
-  const ctx = { view, state, market, ledger, history: historyData };
+  const ctx = { view, state, market, ledger, history: historyData, aprLive };
   // Si una pestaña falla, las demás siguen funcionando y se avisa en pantalla
   [['Inicio', () => renderInicio(view, fund, shares)],
    ['Inicio (gráficos)', () => home.render(ctx)],
@@ -102,6 +105,8 @@ function renderManual(state, view, fund, shares) {
   const dca = computeDcaTable(state.dca, market.prices.BTC.usd);
   const mov = [...state.shares.movements].reverse();
   const addrs = allAddrs();
+  const positions = market.pools?.positions || [];
+  const STK = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'];
 
   $('#manual-root').innerHTML = `
   <div class="card">
@@ -166,6 +171,41 @@ function renderManual(state, view, fund, shares) {
     </tbody></table></div>
     ${market.btcFailed?.length ? `<p class="neg mt-2 text-sm">No se pudo leer: ${market.btcFailed.map(short).join(', ')}</p>` : ''}
     <p class="label mt-3">Para que una dirección sea permanente (visible desde cualquier dispositivo): en tu repositorio de GitHub entra en <b>Actions → Añadir dirección BTC → Run workflow</b> y pega la dirección.</p>
+  </div>
+
+  <div class="card">
+    <h2 class="font-semibold">Entradas de pools (para IL, tiempo y ROI)</h2>
+    <p class="label mb-3">Para cada posición actual: fecha de entrada e importe invertido (USD). Opcional: cantidades iniciales de cada token, para calcular la pérdida impermanente. Al guardar se sobrescribe todo lo anterior (no se acumula).</p>
+    ${positions.length ? `<form data-form="poolentries" class="space-y-3">
+      ${positions.map(p => { const e = state.poolEntries?.[p.id] || {}; return `<div class="grid items-end gap-3 border-t border-[#2d3142] pt-3 sm:grid-cols-4">
+        <div class="sm:col-span-4"><b>${p.pair}</b> <span class="label">${p.protocol} · ${p.network}${p.staked ? ' · staked' : ''}</span></div>
+        ${field(p.id + '|date', 'Fecha de entrada', e.date || '', 'type="date"')}
+        ${field(p.id + '|invested', 'Importe invertido (USD)', e.invested ?? '')}
+        ${field(p.id + '|a0', 'Cantidad inicial ' + p.tokens[0].symbol, e.a0 ?? '')}
+        ${field(p.id + '|a1', 'Cantidad inicial ' + (p.tokens[1]?.symbol || ''), e.a1 ?? '')}</div>`; }).join('')}
+      <button class="btn">Guardar entradas</button>
+      <p class="msg neg text-sm"></p>
+    </form>` : '<p class="label">No hay posiciones de pools cargadas.</p>'}
+  </div>
+
+  <div class="card">
+    <h2 class="font-semibold">Staking manual</h2>
+    <p class="label mb-3">El SKY en staking no se puede leer solo: indica la cantidad (se cuenta como staking en Ethereum, Ledger). Los APR son opcionales y sustituyen a los automáticos y a los de ejemplo. Al guardar se sobrescribe lo anterior.</p>
+    <form data-form="staking" class="grid items-end gap-3 sm:grid-cols-4">
+      ${field('sky', 'SKY en staking (cantidad)', state.stakingManual?.SKY ?? '')}
+      ${STK.map(t => field('apr-' + t, 'APR ' + t + ' (%)', state.aprManual?.[t] ?? '')).join('')}
+      <button class="btn">Guardar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="font-semibold">Claves de API (opcional)</h2>
+    <p class="label mb-3">Helius lee Solana y Moralis sirve de lectura (o respaldo) en Base, Ethereum y Arbitrum. Se guardan solo en este navegador; si dejas un campo vacío se mantiene la clave que ya tenías. Para el snapshot diario, añádelas también como <b>Secrets</b> en GitHub (Settings → Secrets and variables → Actions) con los nombres <b>HELIUS_API_KEY</b> y <b>MORALIS_API_KEY</b>.</p>
+    <form data-form="keys" class="grid items-end gap-3 sm:grid-cols-2">
+      ${Object.entries(KEY_NAMES).map(([k, label]) => field(k, label + (readKeys()[k] ? ' · guardada' : ''), '', 'type="password" autocomplete="off" placeholder="pega aquí tu clave"')).join('')}
+      <button class="btn" value="save">Guardar claves</button>
+      <button class="btn btn-ghost" value="clear" type="submit">Borrar claves</button>
+    </form>
   </div>`;
 }
 
@@ -177,6 +217,16 @@ $('#manual-root').addEventListener('submit', e => {
     if (f.dataset.form === 'dual') store.setDualInvestment(DUAL_ASSETS.map(asset => ({ asset, amount: d[asset] })));
     if (f.dataset.form === 'dca') store.addDca(d);
     if (f.dataset.form === 'btcaddr') store.addBtcAddress(d.address, [...WALLETS.btc, ...fileAddrs]);
+    if (f.dataset.form === 'poolentries') {
+      const by = {};
+      for (const [k, v] of Object.entries(d)) { const [id, fld] = k.split('|'); (by[id] ??= {})[fld] = v; }
+      store.setPoolEntries(by);
+    }
+    if (f.dataset.form === 'staking') store.setStaking({ sky: d.sky, apr: Object.fromEntries(['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'].map(t => [t, d['apr-' + t]])) });
+    if (f.dataset.form === 'keys') {
+      setKeys(e.submitter?.value === 'clear' ? {} : { ...readKeys(), ...Object.fromEntries(Object.entries(d).filter(([, v]) => v)) });
+      btcKey = null; sync();                       // vuelve a leer las redes con las claves nuevas
+    }
     if (f.dataset.form === 'shares') store.addShareMovement({ type: e.submitter.value, qty: d.qty, price: d.price });
   } catch (err) {
     const msg = f.querySelector('.msg'); if (msg) msg.textContent = err.message;
@@ -188,8 +238,8 @@ $('#manual-root').addEventListener('click', e => {
   if (delAddr) store.removeBtcAddress(delAddr);
 });
 $('#export-btn').addEventListener('click', async () => {
-  const { dual, cex, shares } = store.getState();
-  const json = JSON.stringify({ dual, cex, shares }, null, 2);
+  const { dual, cex, shares, stakingManual } = store.getState();
+  const json = JSON.stringify({ dual, cex, shares, stakingManual }, null, 2);
   try { await navigator.clipboard.writeText(json); $('#export-msg').textContent = 'Copiado. Pégalo en data/manual.json de tu repositorio.'; }
   catch { prompt('Copia este texto y pégalo en data/manual.json:', json); }
 });

@@ -52,9 +52,10 @@ export const TRACKDEFI_URL = 'https://trackdefi.app/api/positions';
 // Fuentes públicas gratuitas por red (se pueden cambiar si una cae)
 export const CHAINS = {
   evm: [
-    { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com' },
-    { name: 'Base', native: 'ETH', api: 'https://base.blockscout.com' },
-    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com' },
+    // moralis: nombre de la red en Moralis (respaldo si hay clave) · prefer: 'moralis' lo usa primero
+    { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth' },
+    { name: 'Base', native: 'ETH', api: 'https://base.blockscout.com', moralis: 'base', prefer: 'moralis' },
+    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum' },
     { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
@@ -84,4 +85,9 @@ export const CHAINS = {
   tronApi: 'https://api.trongrid.io',
   tronTokens: { TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t: { symbol: 'USDT', decimals: 6 } },
   cosmosRest: ['https://cosmos-rest.publicnode.com', 'https://rest.cosmos.directory/cosmoshub'],
+};
+
+// APR de staking leído de DefiLlama (se prueba al abrir la pestaña Staking; si no responde se usan tus APR manuales o los de ejemplo)
+export const APR_SOURCES = {
+  SKY: { project: 'sky-lending', symbol: 'SKY', chain: 'Ethereum' },
 };

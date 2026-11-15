@@ -1,6 +1,7 @@
 // Saldos reales por red con APIs públicas gratuitas: EVM (Blockscout), Hyperliquid, Solana, Tron y Cosmos.
 import { WALLETS, CHAINS, COINGECKO_IDS, STAKING_SYMBOLS } from './config.js';
 import { normalizeSymbol } from './accounting.js';
+import { getKey } from './keys.js';
 
 // Reintenta si hay límite de peticiones (429), error del servidor (5xx) o fallo de red; los errores definitivos (404, 403…) no
 const get = async (url, opts = {}) => {
@@ -52,17 +53,43 @@ const push = (out, base, symbol, amount, category) => {
 export const fetchEvm = () => eachUnit(
   WALLETS.evm.flatMap(w => CHAINS.evm.map(net => ({ w, net, label: `${net.name} ${short(w.address)}` }))),
   async ({ w, net }, out) => {
-    const [acc, toks] = await Promise.all([
-      orNull(get(`${net.api}/api/v2/addresses/${w.address}`)),
-      orNull(get(`${net.api}/api/v2/addresses/${w.address}/token-balances`)),
-    ]);
-    const base = { network: net.name, wallet: short(w.address), custody: w.custody };
-    push(out, base, net.native, Number(acc?.coin_balance || 0) / 1e18);
-    for (const t of toks || []) {
-      const tk = t.token || {};
-      if (tk.type && tk.type !== 'ERC-20') continue;
-      if (tk.symbol) push(out, base, tk.symbol, Number(t.value) / 10 ** Number(tk.decimals ?? 18));
+    const mKey = getKey('MORALIS_API_KEY');
+    // Blockscout (sin clave) y, si hay clave de Moralis, Moralis: se prueba el preferido y el otro queda de respaldo
+    const viaBlockscout = async () => {
+      const [acc, toks] = await Promise.all([
+        orNull(get(`${net.api}/api/v2/addresses/${w.address}`)),
+        orNull(get(`${net.api}/api/v2/addresses/${w.address}/token-balances`)),
+      ]);
+      const list = [[net.native, Number(acc?.coin_balance || 0) / 1e18]];
+      for (const t of toks || []) {
+        const tk = t.token || {};
+        if ((!tk.type || tk.type === 'ERC-20') && tk.symbol) list.push([tk.symbol, Number(t.value) / 10 ** Number(tk.decimals ?? 18)]);
+      }
+      return list;
+    };
+    const viaMoralis = async () => {
+      const list = [];
+      let cursor = null, pages = 0;
+      do {
+        const url = `https://deep-index.moralis.io/api/v2.2/wallets/${w.address}/tokens?chain=${net.moralis}&exclude_spam=true&limit=100${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`;
+        const j = await get(url, { headers: { 'X-API-Key': mKey } });
+        for (const t of j.result || []) if (!t.possible_spam) list.push([t.native_token ? net.native : t.symbol, Number(t.balance_formatted)]);
+        cursor = j.cursor; pages++;
+      } while (cursor && pages < 5);
+      return list;
+    };
+    const methods = mKey && net.moralis
+      ? (net.prefer === 'moralis' ? [['Moralis', viaMoralis], ['Blockscout', viaBlockscout]] : [['Blockscout', viaBlockscout], ['Moralis', viaMoralis]])
+      : [['Blockscout', viaBlockscout]];
+    const errs = [];
+    for (const [name, fn] of methods) {
+      try {
+        const base = { network: net.name, wallet: short(w.address), custody: w.custody };
+        for (const [symbol, amount] of await fn()) push(out, base, symbol, amount);
+        return;
+      } catch (e) { errs.push(`${name}: ${why(e)}`); }
     }
+    throw new Error(errs.join('; '));
   });
 
 /* ---- BSC: BNB y tokens BEP-20 de config.js (RPC público, sin clave) ---- */
@@ -110,13 +137,32 @@ async function rpc(method, params) {
 export const fetchSolana = () => eachUnit(
   WALLETS.solana.map(a => ({ a, label: `Solana ${short(a)}` })),
   async ({ a }, out) => {
+    const hKey = getKey('HELIUS_API_KEY');
+    const base = { network: 'Solana', wallet: short(a), custody: 'phantom' };
+    let heliusErr = null;
+    if (hKey) {
+      // API DAS de Helius: SOL + todos los tokens en una sola llamada. Solo se aceptan los tokens de CHAINS.solanaMints (los demás podrían ser falsificaciones)
+      try {
+        const j = await post(`https://mainnet.helius-rpc.com/?api-key=${hKey}`, { jsonrpc: '2.0', id: 1, method: 'getAssetsByOwner', params: { ownerAddress: a, page: 1, limit: 1000, displayOptions: { showFungible: true, showNativeBalance: true } } });
+        if (j.error) throw new Error(j.error.message);
+        push(out, base, 'SOL', (j.result?.nativeBalance?.lamports || 0) / 1e9);
+        for (const it of j.result?.items || []) {
+          const ti = it.token_info;
+          if (!ti || !String(it.interface || '').startsWith('Fungible')) continue;
+          const amount = Number(ti.balance) / 10 ** Number(ti.decimals ?? 0), m = CHAINS.solanaMints[it.id];
+          if (m) push(out, base, m.symbol, amount, m.category);
+          else if (amount > 0 && ti.symbol) out.ignored.push(`${ti.symbol} (Solana, mint desconocido)`);
+        }
+        return;
+      } catch (e) { heliusErr = `Helius: ${why(e)}`; console.warn('Helius falló, se prueban los RPC públicos', e.message); }
+    }
+    try {
     // una consulta por token conocido (más ligera y compatible con los servidores públicos que una búsqueda general)
     const mints = Object.keys(CHAINS.solanaMints);
     const [bal, ...toks] = await Promise.all([
       rpc('getBalance', [a]),
       ...mints.map(mint => rpc('getTokenAccountsByOwner', [a, { mint }, { encoding: 'jsonParsed' }])),
     ]);
-    const base = { network: 'Solana', wallet: short(a), custody: 'phantom' };
     push(out, base, 'SOL', (bal.value || 0) / 1e9);
     toks.forEach((t, i) => {
       const m = CHAINS.solanaMints[mints[i]];
@@ -125,6 +171,7 @@ export const fetchSolana = () => eachUnit(
         push(out, base, m.symbol, Number(ta?.uiAmountString ?? ta?.uiAmount ?? 0), m.category);
       }
     });
+    } catch (e) { throw new Error([heliusErr, e.message].filter(Boolean).join('; ')); }
   });
 
 /* ---- Tron: TRX, TRX en staking (Stake 2.0 y 1.0) y TRC-20 ---- */

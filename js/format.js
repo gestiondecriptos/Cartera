@@ -35,7 +35,7 @@ export function donut(parts, size = 150) {
 export const short = a => (a.length > 16 ? a.slice(0, 8) + '…' + a.slice(-4) : a);
 
 /** Treemap simple (sin librerías): items = [{label, value}] */
-export function treemap(items, height = 280) {
+export function treemap(items, height = 280, eurUsd = null) {
   const data = items.filter(i => i.value > 0).sort((a, b) => b.value - a.value);
   const total = data.reduce((t, i) => t + i.value, 0);
   if (!total) return '<div class="label">Sin datos</div>';
@@ -51,5 +51,5 @@ export function treemap(items, height = 280) {
     else { lay(a, x, y, w, h * r); lay(b, x, y + h * r, w, h * (1 - r)); }
   })(data, 0, 0, 100, 100);
   return `<div style="position:relative;height:${height}px">${out.map((n, i) =>
-    `<div title="${n.label}: ${pct(n.value / total * 100)}" style="position:absolute;left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%;padding:1px"><div style="background:${COLORS[i % 6]};opacity:.85;height:100%;border-radius:3px;overflow:hidden;color:#0b0d16;font-size:.7rem;padding:3px 5px">${n.w * n.h > 350 ? `${n.label}<br><b class="num">${pct(n.value / total * 100, 0)}</b>` : ''}</div></div>`).join('')}</div>`;
+    `<div title="${n.label}${eurUsd ? ' · ' + fmt(n.value / eurUsd, { style: 'currency', currency: 'EUR' }) : ''} (${pct(n.value / total * 100)})" style="position:absolute;left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%;padding:1px"><div style="background:${COLORS[i % 6]};opacity:.85;height:100%;border-radius:3px;overflow:hidden;color:#0b0d16;font-size:.7rem;padding:3px 5px">${n.w * n.h > 350 ? `${n.label}<br><b class="num">${pct(n.value / total * 100, 0)}</b>` : ''}</div></div>`).join('')}</div>`;
 }

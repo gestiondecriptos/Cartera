@@ -69,7 +69,7 @@ export function render(ctx) {
         <select class="inp w-auto" id="f-net" aria-label="Red">${opts(nets, net, 'Todas las redes')}</select>
         <select class="inp w-auto" id="f-asset" aria-label="Activo">${opts(assets, asset, 'Todos los activos')}</select></div>
         ${chart(series(history))}</div>
-      <div class="card"><h2 class="mb-3 font-semibold">Activos</h2>${treemap(view.holdings.map(h => ({ label: h.symbol, value: h.usd })))}</div>
+      <div class="card"><h2 class="mb-3 font-semibold">Activos</h2>${treemap(view.holdings.map(h => ({ label: h.symbol, value: h.usd })), 280, market.eurUsd)}</div>
     </div>
     <div class="card space-y-4"><h2 class="font-semibold">Distribución</h2>${bars}</div>
     <div class="grid gap-4 lg:grid-cols-2">

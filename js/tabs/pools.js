@@ -1,11 +1,20 @@
-import { usd, qty, pct, donut, COLORS } from '../format.js';
-import { normalizeSymbol } from '../accounting.js';
+import { usd, qty, pct, cls, donut, COLORS } from '../format.js';
+import { normalizeSymbol, poolPerformance } from '../accounting.js';
 
 let sel = 0, last = null;
 const SRC = {
   none: 'No se pudieron leer los pools (TrackDeFi no responde). No están incluidos en el patrimonio.',
   partial: 'Algunas direcciones no se pudieron leer: la lista puede estar incompleta.',
 };
+
+// Márgenes respecto al rango (en %), para ver cuánto falta para salirse o cuánto se ha salido
+function marginText(r) {
+  const { lower, upper, current } = r, p = x => pct(Math.abs(x), 1);
+  if (current > upper) return `<span class="neg">Fuera de rango: ${p((current / upper - 1) * 100)} por encima del máximo.</span> Vuelve a entrar si el precio baja un ${p((1 - upper / current) * 100)}.`;
+  if (current < lower) return `<span class="neg">Fuera de rango: ${p((1 - current / lower) * 100)} por debajo del mínimo.</span> Vuelve a entrar si el precio sube un ${p((lower / current - 1) * 100)}.`;
+  const at = upper > lower ? (current - lower) / (upper - lower) * 100 : 50;
+  return `Posición en el rango: <b>${pct(at, 0)}</b> (0% = mínimo · 100% = máximo)<br>Margen hasta el mínimo: <b>−${p((1 - lower / current) * 100)}</b> · hasta el máximo: <b>+${p((upper / current - 1) * 100)}</b>`;
+}
 
 export function render(ctx) {
   last = ctx;
@@ -36,9 +45,9 @@ export function render(ctx) {
         <td class="num">${p.tokens.map(t => `${qty(t.amount)} ${t.symbol} (${pct(p.valueUsd ? t.valueUsd / p.valueUsd * 100 : 0)})`).join('<br>')}</td>
         <td class="num r">${usd(p.valueUsd)}</td>
         <td class="num r">${usd(p.rewardsUsd)}</td>
-        <td class="num r label">—</td><td class="num r label">—</td><td class="num r label">—</td></tr>`).join('')}</tbody></table>`
+        ${(perf => perf ? `<td class="num r ${cls(perf.ilUsd ?? 0)}">${perf.ilUsd == null ? '—' : usd(perf.ilUsd) + '<br>' + pct(perf.ilPct, 2)}</td><td class="num r">${Math.round(perf.days)} d</td><td class="num r ${cls(perf.roiUsd)}">${usd(perf.roiUsd)}<br>${pct(perf.roiPct, 2)} · ${pct(perf.annualPct, 1)} anual</td>` : '<td class="num r label">—</td><td class="num r label">—</td><td class="num r label">—</td>')(poolPerformance(p, ctx.state?.poolEntries?.[p.id]))}</tr>`).join('')}</tbody></table>`
         : '<p class="label">No hay posiciones.</p>'}
-      <p class="label mt-3">Fuente: TrackDeFi. No proporciona pérdida impermanente (IL), tiempo activo ni ROI: para calcularlos hace falta registrar la entrada de cada posición (fecha e importe). Pulsa una fila para ver su rango.</p>
+      <p class="label mt-3">Fuente: TrackDeFi. IL, tiempo y ROI se calculan con la entrada que registres en «Datos manuales → Entradas de pools» (ROI = valor + comisiones pendientes − invertido; IL = valor actual − valor de mantener los tokens iniciales). Pulsa una fila para ver su rango.</p>
       ${warnings?.length ? `<p class="label mt-2">Avisos de TrackDeFi (puede faltar alguna posición): ${warnings.slice(0, 3).join(' · ')}${warnings.length > 3 ? ` (+${warnings.length - 3} más)` : ''}</p>` : ''}
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
@@ -47,7 +56,8 @@ export function render(ctx) {
           <div class="absolute h-3 rounded opacity-40" style="left:${at(s.range.lower)}%;width:${at(s.range.upper) - at(s.range.lower)}%;background:${s.color}"></div>
           <div class="absolute -top-1 h-5 w-1 rounded" style="left:calc(${at(s.range.current)}% - 2px);background:${s.color}"></div></div>
           <div class="num mt-3 flex justify-between text-xs"><span>mín ${fmtR(s.range.lower)}</span><span style="color:${s.color}">actual ${fmtR(s.range.current)}</span><span>máx ${fmtR(s.range.upper)}</span></div>
-          <div class="label mt-1">Precio en ${s.range.quoteLabel}</div>` : '<div class="label">Esta posición no tiene rango (pool V2) o no hay posiciones.</div>'}</div>
+          <div class="label mt-1">Precio en ${s.range.quoteLabel}</div>
+          <div class="num mt-3 text-sm">${marginText(s.range)}</div>` : '<div class="label">Esta posición no tiene rango (pool V2) o no hay posiciones.</div>'}</div>
       <div class="card"><h2 class="mb-4 font-semibold">Exposición por activo</h2>
         ${Object.keys(expo).length ? donut(Object.entries(expo).map(([label, value], i) => ({ label, value, color: COLORS[i % 6] }))) : '<div class="label">Sin datos</div>'}</div>
     </div>`;

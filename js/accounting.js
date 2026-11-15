@@ -40,6 +40,7 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     ...onchain,
     ...state.dual.map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', custody: 'exchange', category: 'dual' })),
     ...Object.entries(state.cex).map(([symbol, amount]) => ({ symbol, amount, network: 'CEX', custody: 'exchange', category: 'libre' })),
+    ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({ symbol, amount, network: 'Ethereum', custody: 'ledger', category: 'staking' })),
   ];
   const map = new Map();
   const by = { category: {}, custody: {}, network: {}, wallet: {} };
@@ -93,4 +94,21 @@ export function computeDcaTable(rows, btcPrice) {
     valueNoDebt: r.btc * btcPrice - r.debt,
     buyPriceEst: i === 0 ? null : r.buyUsd * 1000,
   }));
+}
+
+/**
+ * IL, tiempo y ROI de una posición de pool a partir de la entrada que registra el usuario.
+ *  ROI neto = valor actual + comisiones pendientes − importe invertido (no incluye comisiones ya cobradas)
+ *  IL = valor actual de la posición − valor de mantener las cantidades iniciales (sin comisiones). Negativo = pérdida.
+ */
+export function poolPerformance(p, e, now = Date.now()) {
+  if (!e) return null;
+  const days = Math.max(1, (now - Date.parse(e.date)) / 864e5);
+  const roiUsd = p.valueUsd + p.rewardsUsd - e.invested, roiPct = roiUsd / e.invested * 100;
+  let ilUsd = null, ilPct = null;
+  if (e.a0 != null && e.a1 != null && p.tokens.length === 2) {
+    const hodl = e.a0 * (p.tokens[0].priceUsd || 0) + e.a1 * (p.tokens[1].priceUsd || 0);
+    if (hodl > 0) { ilUsd = p.valueUsd - hodl; ilPct = ilUsd / hodl * 100; }
+  }
+  return { days, roiUsd, roiPct, annualPct: roiPct * 365 / days, ilUsd, ilPct };
 }

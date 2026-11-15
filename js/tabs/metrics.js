@@ -39,7 +39,16 @@ export function render() {
   const d = st.data, L = d.last;
   const dd = d.ath.value ? (L.price / d.ath.value - 1) * 100 : null;
   const ratio = L.ma200 ? L.price / L.ma200 : null;
-  const stat = (label, value, sub = '', tone = '') => `<div class="card"><div class="label">${label}</div><div class="num text-xl ${tone}">${value}</div><div class="label">${sub}</div></div>`;
+  // Señales: verde = zona de compra, rojo = zona de venta
+  const ok = v => Number.isFinite(v), sig = (buy, sell) => (buy ? 'buy' : sell ? 'sell' : '');
+  const S = {
+    mvrv: ok(L.mvrv) ? sig(L.mvrv < 1, L.mvrv > 2.5) : '',
+    realized: ok(L.price) && ok(L.realized) ? sig(L.price < L.realized, L.price > 2 * L.realized) : '',
+    ma: ok(L.price) && ok(L.ma200) ? sig(L.price < L.ma200, L.price > 2 * L.ma200) : '',
+    rsi: ok(L.rsi) ? sig(L.rsi < 30, L.rsi > 75) : '',
+  };
+  const SIG = { buy: ['#22c55e', 'Comprar'], sell: ['#ef4444', 'Vender'] };
+  const stat = (label, value, sub = '', tone = '', s = '') => { const c = SIG[s]; return `<div class="card" ${c ? `style="border-color:${c[0]};background:${c[0]}1f"` : ''}><div class="label">${label}${c ? ` <b style="color:${c[0]}">· ${c[1]}</b>` : ''}</div><div class="num text-xl ${tone}" ${c ? `style="color:${c[0]}"` : ''}>${value}</div><div class="label">${sub}</div></div>`; };
   const card = (title, note, body) => `<div class="card"><h2 class="font-semibold">${title}</h2><p class="label mb-3">${note}</p>${body}</div>`;
 
   const hv = d.tip ? halvingInfo(d.tip) : null;
@@ -57,12 +66,13 @@ export function render() {
       ${Object.keys(RANGES).map(r => `<button class="btn ${r === range ? '' : 'btn-ghost'}" data-mrange="${r}" type="button">${r}</button>`).join('')}</div>
     ${d.errors.length ? `<p class="neg text-sm">No se pudo leer: ${d.errors.join(', ')}.</p>` : ''}
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      ${stat('MVRV', L.mvrv ? fmt(L.mvrv, { maximumFractionDigits: 2 }) : '—', 'precio ÷ precio realizado')}
-      ${stat('Precio realizado', L.realized ? usd(L.realized) : '—', 'coste medio on-chain')}
-      ${stat('Precio / media 200 sem.', ratio ? fmt(ratio, { maximumFractionDigits: 2 }) + '×' : '—', L.ma200 ? 'media: ' + usd(L.ma200) : '')}
-      ${stat('RSI diario (14)', L.rsi != null ? fmt(L.rsi, { maximumFractionDigits: 1 }) : '—', L.rsi >= 70 ? 'sobrecompra' : L.rsi <= 30 ? 'sobreventa' : 'zona neutral')}
+      ${stat('MVRV', L.mvrv ? fmt(L.mvrv, { maximumFractionDigits: 2 }) : '—', 'precio ÷ precio realizado', '', S.mvrv)}
+      ${stat('Precio realizado', L.realized ? usd(L.realized) : '—', 'coste medio on-chain', '', S.realized)}
+      ${stat('Precio / media 200 sem.', ratio ? fmt(ratio, { maximumFractionDigits: 2 }) + '×' : '—', L.ma200 ? 'media: ' + usd(L.ma200) : '', '', S.ma)}
+      ${stat('RSI diario (14)', L.rsi != null ? fmt(L.rsi, { maximumFractionDigits: 1 }) : '—', L.rsi > 75 ? 'sobrecompra' : L.rsi < 30 ? 'sobreventa' : 'zona neutral', '', S.rsi)}
       ${stat('Caída desde máximo', dd == null ? '—' : pct(dd, 1), 'máx. ' + (d.ath.value ? usd(d.ath.value) : '—'), dd < 0 ? 'neg' : '')}
     </div>
+    <p class="label">Verde = zona de compra · Rojo = zona de venta. MVRV: comprar &lt; 1, vender &gt; 2,5 · Precio vs precio realizado: comprar si está por debajo, vender si lo supera más del doble · Precio vs media de 200 semanas: comprar por debajo, vender si la supera más del doble · RSI: comprar &lt; 30, vender &gt; 75.</p>
     ${card('Precio y precio realizado', 'El precio realizado es el coste medio de todas las monedas en su último movimiento.', has(d.realized)
       ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
     ${card('MVRV', 'Precio de mercado ÷ precio realizado. Por debajo de 1, el mercado cotiza bajo el coste medio on-chain.', has(d.mvrv)

@@ -8,6 +8,9 @@ const defaults = () => ({
   version: 1,
   dual: [],                                       // [{asset, amount, network:'BSC'}]
   dca: [],                                        // [{id, month:'2026-06', buyUsd, debt, ltv, btc}] (varias filas por mes)
+  poolEntries: {},                                // {idPosición: {date, invested, a0, a1}} para IL, tiempo y ROI de pools
+  stakingManual: {},                              // {SKY: cantidad} (no se puede leer solo)
+  aprManual: {},                                  // {TOKEN: APR %} que sustituye al automático
   btcAddresses: [],                               // direcciones BTC extra (solo este navegador)
   cex: Object.fromEntries(CEX_ASSETS.map(a => [a, 0])),
   shares: { base: INITIAL_SHARES, movements: [] } // movements: [{date, type:'add'|'sub', qty, price}]
@@ -84,6 +87,24 @@ export function addShareMovement({ type, qty, price }) {
   if (!(qty > 0)) throw new Error('La cantidad debe ser mayor que 0.');
   if (type === 'sub' && qty > totalShares()) throw new Error('No puedes restar más participaciones de las que hay.');
   state.shares.movements.push({ date: new Date().toISOString(), type, qty, price: price || 0 });
+  persist();
+}
+
+// Entradas de pools: SOBRESCRIBE (no acumula). Una por posición; sin fecha o importe se descarta.
+export function setPoolEntries(entries) {
+  const out = {};
+  for (const [id, e] of Object.entries(entries)) {
+    if (!e.date || !(+e.invested > 0)) continue;
+    out[id] = { date: e.date, invested: +e.invested, a0: +e.a0 > 0 ? +e.a0 : null, a1: +e.a1 > 0 ? +e.a1 : null };
+  }
+  state.poolEntries = out;
+  persist();
+}
+
+// Staking manual: SOBRESCRIBE. sky = cantidad de SKY en staking; apr = {TOKEN: %}
+export function setStaking({ sky, apr = {} }) {
+  state.stakingManual = +sky > 0 ? { SKY: +sky } : {};
+  state.aprManual = Object.fromEntries(Object.entries(apr).filter(([, v]) => v !== '' && v != null && Number.isFinite(+v)).map(([k, v]) => [k, +v]));
   persist();
 }
 
