@@ -27,5 +27,16 @@
   },
   "stakingManual": {
     "SKY": 2979.08
-  }
+  },
+  "dualDebt": 0,
+  "dca": [
+    {
+      "id": "mwi903ox5zsy",
+      "month": "2026-10",
+      "buyUsd": 80,
+      "debt": 377.35,
+      "ltv": 35,
+      "btc": 0.0224318
+    }
+  ]
 }
