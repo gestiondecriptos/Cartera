@@ -220,7 +220,7 @@ export async function loadChains() {
   await Promise.all(Object.entries(jobs).map(async ([name, fn]) => {
     let r;
     try { r = await fn(); } catch (e) { r = { items: [], failed: [`${name} (${why(e)})`], ignored: [], attempts: 1 }; }
-    sources[name] = !r.failed.length ? 'live' : r.failed.length >= r.attempts ? 'mock' : 'partial';
+    sources[name] = !r.failed.length ? 'live' : r.failed.length >= r.attempts ? 'none' : 'partial';
     items[name] = r.items;
     failed.push(...r.failed);
     r.ignored.forEach(s => ignored.add(s));

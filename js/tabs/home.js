@@ -84,6 +84,26 @@ export function render(ctx) {
         <tr><td class="label">Total / media ponderada</td><td class="num r">${usd(st.tvl)}</td><td class="num r">${pct(st.wApr, 2)}</td></tr></tbody></table></div>
     </div>`;
 
+  // Tooltip del treemap: nombre del activo, equivalente en € y porcentaje (también al tocar en el móvil)
+  let tip = document.getElementById('tm-tip');
+  if (!tip) {
+    tip = document.createElement('div'); tip.id = 'tm-tip';
+    tip.style.cssText = 'position:fixed;z-index:50;pointer-events:none;display:none;background:#0b0d16;border:1px solid #2d3142;border-radius:6px;padding:6px 10px;font-size:.8rem;line-height:1.3';
+    document.body.appendChild(tip);
+  }
+  tip.style.display = 'none';
+  const showTip = (el, x, y) => {
+    tip.innerHTML = `<b>${el.dataset.name}</b><br><span class="num">${el.dataset.eur}</span> · <span class="num">${el.dataset.pct}</span>`;
+    tip.style.display = 'block';
+    tip.style.left = Math.max(4, Math.min(x + 14, innerWidth - tip.offsetWidth - 8)) + 'px';
+    tip.style.top = Math.min(y + 14, innerHeight - tip.offsetHeight - 8) + 'px';
+  };
+  root.querySelectorAll('.tm-cell').forEach(el => {
+    el.onmousemove = e => showTip(el, e.clientX, e.clientY);
+    el.onmouseleave = () => (tip.style.display = 'none');
+    el.onclick = e => showTip(el, e.clientX, e.clientY);
+  });
+
   root.querySelectorAll('[data-range]').forEach(el => (el.onclick = () => { range = el.dataset.range; render(last); }));
   root.querySelector('#f-net').onchange = e => { net = e.target.value; render(last); };
   root.querySelector('#f-asset').onchange = e => { asset = e.target.value; render(last); };

@@ -1,5 +1,6 @@
 // Formato y mini-gráficos compartidos por las pestañas (sin librerías).
 export const fmt = (n, o) => n.toLocaleString('es-ES', o);
+export const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const usd = n => fmt(n, { style: 'currency', currency: 'USD' });
 export const qty = n => fmt(n, { maximumFractionDigits: 6 });
 export const pct = (n, d = 1) => fmt(n, { minimumFractionDigits: d, maximumFractionDigits: d }) + '%';
@@ -51,5 +52,5 @@ export function treemap(items, height = 280, eurUsd = null) {
     else { lay(a, x, y, w, h * r); lay(b, x, y + h * r, w, h * (1 - r)); }
   })(data, 0, 0, 100, 100);
   return `<div style="position:relative;height:${height}px">${out.map((n, i) =>
-    `<div title="${n.label}${eurUsd ? ' · ' + fmt(n.value / eurUsd, { style: 'currency', currency: 'EUR' }) : ''} (${pct(n.value / total * 100)})" style="position:absolute;left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%;padding:1px"><div style="background:${COLORS[i % 6]};opacity:.85;height:100%;border-radius:3px;overflow:hidden;color:#0b0d16;font-size:.7rem;padding:3px 5px">${n.w * n.h > 350 ? `${n.label}<br><b class="num">${pct(n.value / total * 100, 0)}</b>` : ''}</div></div>`).join('')}</div>`;
+    `<div class="tm-cell" data-name="${esc(n.label)}" data-eur="${eurUsd ? fmt(n.value / eurUsd, { style: 'currency', currency: 'EUR' }) : usd(n.value)}" data-pct="${pct(n.value / total * 100)}" style="position:absolute;left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%;padding:1px"><div style="background:${COLORS[i % 6]};opacity:.85;height:100%;border-radius:3px;overflow:hidden;color:#0b0d16;font-size:.7rem;padding:3px 5px">${n.w * n.h > 350 ? `${n.label}<br><b class="num">${pct(n.value / total * 100, 0)}</b>` : ''}</div></div>`).join('')}</div>`;
 }

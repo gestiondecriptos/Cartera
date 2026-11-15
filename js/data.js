@@ -2,7 +2,7 @@
 import { WALLETS, COINGECKO_IDS, APR_SOURCES } from './config.js';
 import { loadChains } from './chains.js';
 import { fetchPools, poolItems } from './trackdefi.js';
-import { MOCK_PRICES, MOCK_EUR_USD, MOCK_BTC_ONCHAIN, MOCK_OTHER_ONCHAIN } from './mock-data.js';
+import { MOCK_PRICES, MOCK_EUR_USD } from './mock-data.js';
 
 const API = 'https://mempool.space/api';
 const get = async url => {
@@ -42,20 +42,13 @@ async function fetchBtcOnchain(addresses) {
       out.push({ symbol: 'BTC', amount: sats / 1e8, network: 'Bitcoin', wallet: address, custody: 'ledger' });
     } catch (e) { console.warn('BTC on-chain: no se pudo leer', address, e.message); failed.push(address); }
   }
-  if (!out.length) return { balances: MOCK_BTC_ONCHAIN, source: 'mock', failed: [] };
+  if (!out.length) return { balances: [], source: 'none', failed };   // sin datos inventados: el total no los incluye y la etiqueta lo avisa
   return { balances: out, source: 'live', failed };
 }
 
-// Redes de cada familia: si TODA una familia falla se usan datos simulados de esa familia (y se avisa)
-const FAMILY_NETWORKS = {
-  evm: ['Ethereum', 'Base', 'Arbitrum', 'Unichain'], bsc: ['BSC'], hyperliquid: ['Hyperliquid'], solana: ['Solana'], tron: ['Tron'], cosmos: ['Cosmos'],
-};
-
 export async function loadMarketData(btcAddresses = WALLETS.btc) {
   const [p, btc, chains, pools] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses), loadChains(), fetchPools()]);
-  const others = Object.keys(FAMILY_NETWORKS).flatMap(f => chains.sources[f] === 'mock'
-    ? MOCK_OTHER_ONCHAIN.filter(i => FAMILY_NETWORKS[f].includes(i.network))
-    : chains.items[f]);
+  const others = Object.values(chains.items).flat();
   return {
     prices: p.prices,
     eurUsd: p.eurUsd,
@@ -132,19 +125,24 @@ export async function loadHistory() {
 
 /**
  * APR de staking desde DefiLlama (API pública de yields). Se guarda 12 h en el navegador.
- * Si la API no responde o ya no es gratuita, devuelve {} y se usan los APR manuales o de ejemplo.
+ * Devuelve {TOKEN: {apr, label}}. Si la API no responde o ya no es gratuita, devuelve {} y se usan APR de ejemplo.
  */
 export async function loadStakingApr() {
-  const KEY = 'cripto-dashboard:apr';
+  const KEY = 'cripto-dashboard:apr2';
   try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.t < 12 * 3600e3) return c.aprs; } catch { /* sin caché */ }
   try {
     const r = await fetch('https://yields.llama.fi/pools', { signal: AbortSignal.timeout(40000) });
     if (!r.ok) throw new Error(String(r.status));
     const pools = (await r.json()).data || [];
     const aprs = {};
-    for (const [sym, f] of Object.entries(APR_SOURCES)) {
-      const hit = pools.filter(p => p.project === f.project && p.symbol === f.symbol && p.chain === f.chain).sort((a, b) => b.tvlUsd - a.tvlUsd)[0];
-      if (hit && Number.isFinite(hit.apy)) aprs[sym] = hit.apy;
+    for (const [sym, rules] of Object.entries(APR_SOURCES)) {
+      for (const f of rules) {
+        const hit = pools.filter(p => Number.isFinite(p.apy) && p.apy >= 0 && p.apy < 50 && !p.outlier   // se descartan APR absurdos
+          && (!f.project || String(p.project).toLowerCase().includes(f.project))
+          && (!f.symbol || String(p.symbol).toUpperCase() === f.symbol.toUpperCase())
+          && (!f.chain || String(p.chain).toLowerCase() === f.chain.toLowerCase())).sort((a, b) => b.tvlUsd - a.tvlUsd)[0];
+        if (hit) { aprs[sym] = { apr: hit.apy, label: `DefiLlama · ${hit.project}${f.approx ? ' (aprox.)' : ''}` }; break; }
+      }
     }
     if (Object.keys(aprs).length) try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), aprs })); } catch { /* sin almacenamiento */ }
     return aprs;

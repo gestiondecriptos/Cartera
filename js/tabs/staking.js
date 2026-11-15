@@ -3,18 +3,17 @@ import { MOCK_STAKING_APR } from '../mock-data.js';
 
 const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'];
 
-// APR: manual (Datos manuales) > DefiLlama > ejemplo
-const aprFor = (sym, state, live) => state?.aprManual?.[sym] != null ? { apr: +state.aprManual[sym], src: 'manual' }
-  : live?.[sym] != null ? { apr: live[sym], src: 'DefiLlama' } : { apr: MOCK_STAKING_APR[sym] ?? 0, src: 'ejemplo' };
+// APR: DefiLlama si hay pool; si no, valor de ejemplo
+const aprFor = (sym, live) => live?.[sym] ? { apr: live[sym].apr, src: live[sym].label } : { apr: MOCK_STAKING_APR[sym] ?? 0, src: 'ejemplo' };
 
-export function stakingData({ view, market, state, aprLive }) {
+export function stakingData({ view, market, aprLive }) {
   // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL, JitoSOL…)
   const extra = view.holdings.filter(h => h.sources.some(s => s.category === 'staking')).map(h => h.symbol);
   const rows = [...new Set([...TOKENS, ...extra])].map(sym => {
     const h = view.holdings.find(x => x.symbol === sym);
     const amount = (h?.sources || []).filter(s => s.category === 'staking').reduce((t, s) => t + s.amount, 0);
     const value = amount * (market.prices[sym]?.usd ?? 0);
-    const { apr, src } = aprFor(sym, state, aprLive);
+    const { apr, src } = aprFor(sym, aprLive);
     return { sym, amount, value, apr, src, daily: value * apr / 100 / 365 };
   });
   const tvl = rows.reduce((t, r) => t + r.value, 0);
@@ -34,7 +33,7 @@ export function render(ctx) {
     </div>
     <div class="card scroll-x"><table class="tbl">
       <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria (USD)</th></tr></thead>
-      <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">${r.src === 'ejemplo' ? '(ejemplo)' : '(' + r.src + ')'}</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
+      <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">(${r.src})</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: manual si lo has puesto, si no DefiLlama (solo SKY) y si no, de ejemplo.</p></div>`;
+    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, de ejemplo.</p></div>`;
 }

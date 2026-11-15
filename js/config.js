@@ -87,7 +87,20 @@ export const CHAINS = {
   cosmosRest: ['https://cosmos-rest.publicnode.com', 'https://rest.cosmos.directory/cosmoshub'],
 };
 
-// APR de staking leído de DefiLlama (se prueba al abrir la pestaña Staking; si no responde se usan tus APR manuales o los de ejemplo)
+// APR de staking leído de DefiLlama. Para cada token se prueban las reglas en orden y se usa el pool con más TVL que cumpla:
+// project (contiene), symbol (igual), chain (igual). «approx» marca un pool parecido usado como referencia.
+// Si ninguna regla encuentra pool, se muestra un APR de ejemplo.
 export const APR_SOURCES = {
-  SKY: { project: 'sky-lending', symbol: 'SKY', chain: 'Ethereum' },
+  SKY: [{ project: 'sky-lending', symbol: 'SKY', chain: 'Ethereum' }, { project: 'sky', symbol: 'SKY', chain: 'Ethereum' }],
+  HYPE: [{ project: 'kinetiq', chain: 'Hyperliquid L1', approx: true }],
+  SOL: [{ project: 'phantom', chain: 'Solana' }, { project: 'jito', chain: 'Solana', approx: true }],
+  ATOM: [{ project: 'stride', symbol: 'ATOM', approx: true }],
+  PENDLE: [{ project: 'pendle', symbol: 'SPENDLE' }],
+};
+
+// Claves de API (opcionales): pégalas entre las comillas.
+// ATENCIÓN: este archivo es público en GitHub, así que cualquiera podría ver y usar tus claves. Usa planes gratuitos y, si las ves usadas por otros, genera claves nuevas.
+export const API_KEYS = {
+  HELIUS_API_KEY: '',   // Solana (https://dashboard.helius.dev)
+  MORALIS_API_KEY: '',  // EVM: Base, Ethereum y Arbitrum (https://admin.moralis.com)
 };

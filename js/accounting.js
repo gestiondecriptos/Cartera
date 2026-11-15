@@ -40,6 +40,9 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     ...onchain,
     ...state.dual.map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', custody: 'exchange', category: 'dual' })),
     ...Object.entries(state.cex).map(([symbol, amount]) => ({ symbol, amount, network: 'CEX', custody: 'exchange', category: 'libre' })),
+    // Deuda USDT del Dual Investment y «Deuda acumulada» de la ÚLTIMA fila del DCA (se restan del total)
+    ...(state.dualDebt > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebt, network: 'BSC', custody: 'exchange' }] : []),
+    ...(state.dca?.at(-1)?.debt > 0 ? [{ symbol: 'variableDebtUSDC', amount: state.dca.at(-1).debt, network: 'Ethereum', custody: 'ledger' }] : []),
     ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({ symbol, amount, network: 'Ethereum', custody: 'ledger', category: 'staking' })),
   ];
   const map = new Map();

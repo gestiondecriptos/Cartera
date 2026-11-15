@@ -10,7 +10,7 @@ const defaults = () => ({
   dca: [],                                        // [{id, month:'2026-06', buyUsd, debt, ltv, btc}] (varias filas por mes)
   poolEntries: {},                                // {idPosición: {date, invested, a0, a1}} para IL, tiempo y ROI de pools
   stakingManual: {},                              // {SKY: cantidad} (no se puede leer solo)
-  aprManual: {},                                  // {TOKEN: APR %} que sustituye al automático
+  dualDebt: 0,                                    // Deuda USDT del Dual Investment (se resta del total)
   btcAddresses: [],                               // direcciones BTC extra (solo este navegador)
   cex: Object.fromEntries(CEX_ASSETS.map(a => [a, 0])),
   shares: { base: INITIAL_SHARES, movements: [] } // movements: [{date, type:'add'|'sub', qty, price}]
@@ -26,6 +26,7 @@ function load() {
     s.dca = s.dca.map(r => (r.id ? r : { ...r, id: uid() })); // datos guardados antes de este cambio
     s.btcAddresses = [...new Set([...(s.btcAddresses || []), ...(s.btcLedger || []).map(p => p.address)])]; // migración
     delete s.btcLedger;
+    delete s.aprManual;                         // ya no existe: los APR vienen de DefiLlama
     return s;
   } catch { return defaults(); }
 }
@@ -40,7 +41,8 @@ export const getState = () => structuredClone(state);
 export const subscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
 
 // Dual Investment: SOBRESCRIBE (no acumula). Solo BSC y BTCB/ETH/BNB/USDT.
-export function setDualInvestment(positions) {
+export function setDualInvestment(positions, debtUsdt = 0) {
+  state.dualDebt = +debtUsdt > 0 ? +debtUsdt : 0;
   state.dual = positions
     .filter(p => DUAL_ASSETS.includes(p.asset) && +p.amount > 0)
     .map(p => ({ asset: p.asset, amount: +p.amount, network: 'BSC' }));
@@ -101,10 +103,9 @@ export function setPoolEntries(entries) {
   persist();
 }
 
-// Staking manual: SOBRESCRIBE. sky = cantidad de SKY en staking; apr = {TOKEN: %}
-export function setStaking({ sky, apr = {} }) {
+// Staking manual: SOBRESCRIBE. sky = cantidad de SKY en staking
+export function setStaking({ sky }) {
   state.stakingManual = +sky > 0 ? { SKY: +sky } : {};
-  state.aprManual = Object.fromEntries(Object.entries(apr).filter(([, v]) => v !== '' && v != null && Number.isFinite(+v)).map(([k, v]) => [k, +v]));
   persist();
 }
 

@@ -10,7 +10,7 @@ const readJson = (p, fallback) => { try { return JSON.parse(fs.readFileSync(file
 const extra = readJson('data/wallets.json', {}).btc || [];
 const manual = readJson('data/manual.json', {});
 const state = {
-  dual: manual.dual || [], cex: manual.cex || {}, dca: [], stakingManual: manual.stakingManual || {},
+  dual: manual.dual || [], cex: manual.cex || {}, dca: manual.dca || [], stakingManual: manual.stakingManual || {}, dualDebt: manual.dualDebt || 0,
   shares: manual.shares || { base: INITIAL_SHARES, movements: [] },
 };
 const shares = state.shares.base + (state.shares.movements || []).reduce((t, m) => t + (m.type === 'add' ? m.qty : -m.qty), 0);
