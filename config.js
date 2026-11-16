@@ -80,6 +80,7 @@ export const CHAINS = {
       '0x2170Ed0880ac9A755fd29B2688956BD959F933F8': 'ETH',
       '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82': 'CAKE',
       '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c': 'WBNB',
+      '0x56a7ddc4e848EbF43845854205ad71D5D5F72d3D': 'aBnbBTCB',   // BTCB depositado como colateral en Aave v3 (BSC)
     },
   },
   tronApi: 'https://api.trongrid.io',

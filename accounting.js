@@ -42,8 +42,7 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     ...Object.entries(state.cex).map(([symbol, amount]) => ({ symbol, amount, network: 'CEX', custody: 'exchange', category: 'libre' })),
     // Deuda USDT del Dual Investment y «Deuda acumulada» de la ÚLTIMA fila del DCA (se restan del total)
     ...(state.dualDebt > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebt, network: 'BSC', custody: 'exchange' }] : []),
-    // Estrategia DCA con colateral: «BTC acumulado» (colateral) y «Deuda acumulada» de la ÚLTIMA fila
-    ...(state.dca?.at(-1)?.btc > 0 ? [{ symbol: 'BTC', amount: state.dca.at(-1).btc, network: 'DCA colateral', custody: 'exchange', category: 'colateral' }] : []),
+    // Estrategia DCA: solo la «Deuda acumulada» de la ÚLTIMA fila (el BTC colateral ya se lee de aBnbBTCB en BSC)
     ...(state.dca?.at(-1)?.debt > 0 ? [{ symbol: 'variableDebtUSDC', amount: state.dca.at(-1).debt, network: 'DCA colateral', custody: 'exchange' }] : []),
     ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({ symbol, amount, network: 'Ethereum', custody: 'ledger', category: 'staking' })),
   ];

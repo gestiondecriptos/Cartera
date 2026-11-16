@@ -17,7 +17,7 @@ export function render({ view, state, market, ledger = [] }) {
     stackedBar('Tipo de BTC', [
       { label: 'BTC onchain', value: anon, color: '#f7931a' },
       { label: 'WBTC', value: sum(s => s.raw === 'WBTC'), color: '#38bdf8' },
-      { label: 'BTCB', value: sum(s => s.raw === 'BTCB'), color: '#fbbf24' },
+      { label: 'BTCB', value: sum(s => s.raw === 'BTCB' || s.raw === 'aBnbBTCB'), color: '#fbbf24' },
       { label: 'BTC Exchanges', value: sum(s => s.raw === 'BTC' && !onchain(s)), color: '#a78bfa' }]),
   ].join('');
 
@@ -47,5 +47,5 @@ export function render({ view, state, market, ledger = [] }) {
     </div>
     <div class="card scroll-x"><h2 class="mb-2 font-semibold">Estrategia DCA con BTC como colateral</h2>
       ${dca.length ? `<table class="tbl"><thead><tr><th>Mes</th><th class="r">Compra</th><th class="r">Deuda</th><th class="r">% LTV</th><th class="r">BTC acumulado</th><th class="r">Valor sin deuda</th><th class="r">Precio compra est.</th></tr></thead><tbody>${dcaRows}</tbody></table>`
-        : '<p class="label">Aún no hay meses. Añádelos en la pestaña «Datos manuales».</p>'}</div>`;
+        : '<p class="label">Aún no hay meses. Añádelos en data/manual.js (sección dca), una línea por compra.</p>'}</div>`;
 }

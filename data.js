@@ -25,12 +25,6 @@ async function fetchPrices() {
   }
 }
 
-/** Direcciones BTC guardadas de forma permanente en data/wallets.json (las añade el workflow de GitHub Actions). */
-export async function loadWalletsFile() {
-  try { const j = await get('data/wallets.json'); return Array.isArray(j.btc) ? j.btc : []; }
-  catch { return []; }
-}
-
 /** Saldos on-chain. Una dirección que falla no tumba a las demás; si fallan todas, se usan datos simulados. */
 async function fetchBtcOnchain(addresses) {
   const out = [], failed = [];

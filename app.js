@@ -1,4 +1,5 @@
-import { loadMarketData, loadWalletsFile, loadBtcLedger, loadHistory, loadStakingApr } from './data.js';
+import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr } from './data.js';
+import { manualFileText } from './manualtext.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
 import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
@@ -20,8 +21,6 @@ let market = null;
 let ledger = [];
 let historyData = [];
 let aprLive = {}, aprTried = false;
-let fileAddrs = [];
-const allAddrs = () => [...new Set([...WALLETS.btc, ...fileAddrs, ...store.getState().btcAddresses])];
 
 /* ---------- Navegación por pestañas ---------- */
 const tabs = [...document.querySelectorAll('.tab')];
@@ -42,10 +41,10 @@ function bootMsg(t) {
   if (b) { b.textContent = t; b.style.color = t.startsWith('Error') ? '#f87171' : ''; b.hidden = !t; }
 }
 
-// force = true cuando cambian los datos guardados; si no, no se redibuja «Datos manuales» mientras estás escribiendo en un campo
-function refresh(force = false) {
+function refresh() {
   if (!market) return;
-  bootMsg('');
+  const mErr = store.loadError();
+  bootMsg(mErr ? `Error en data/manual.js: ${mErr}` : '');
   const state = store.getState();
   const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
@@ -54,7 +53,7 @@ function refresh(force = false) {
   // Si una pestaña falla, las demás siguen funcionando y se avisa en pantalla
   [['Inicio', () => renderInicio(view, fund, shares)],
    ['Inicio (gráficos)', () => home.render(ctx)],
-   ['Datos manuales', () => renderManual(state, view, fund, shares, force)],
+   ['Datos manuales', () => renderManual(state, view, fund, shares)],
    ['Pools', () => pools.render(ctx)],
    ['Staking', () => staking.render(ctx)],
    ['Bitcoin', () => bitcoin.render(ctx)]].forEach(([name, fn]) => {
@@ -97,153 +96,80 @@ function renderInicio(view, fund, shares) {
   badge.textContent = bad.length ? `Datos no reales: ${bad.join(', ')}` : 'Datos reales';
 }
 
-/* ---------- Pestaña 6: datos manuales ---------- */
-const field = (name, label, val = '', extra = 'type="number" step="any" min="0"') =>
-  `<label class="block label">${label}<input class="inp num mt-1" name="${name}" ${extra} value="${val}"></label>`;
+/* ---------- Pestaña 6: datos manuales (solo lectura; se editan en data/manual.js) ---------- */
+let copyMap = {};
 
-function renderManual(state, view, fund, shares, force = false) {
-  const root = $('#manual-root'), ae = document.activeElement;
-  if (!force && root.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;   // no borrar lo que estás escribiendo
-  const dca = computeDcaTable(state.dca, market.prices.BTC.usd);
-  const mov = [...state.shares.movements].reverse();
-  const addrs = allAddrs();
+// Datos de la versión anterior (formularios) que pudieran quedar guardados en ESTE navegador
+function readLegacy() {
+  try {
+    const s = JSON.parse(localStorage.getItem('cripto-dashboard:v1') || 'null');
+    if (!s) return null;
+    const any = Object.values(s.cex || {}).some(v => v > 0) || s.dual?.length || s.dca?.length || s.shares?.movements?.length
+      || Object.keys(s.poolEntries || {}).length || s.dualDebt > 0 || Object.keys(s.stakingManual || {}).length;
+    return any ? s : null;
+  } catch { return null; }
+}
+
+function renderManual(state, view, fund, shares) {
+  const err = store.loadError();
   const positions = market.pools?.positions || [];
-  const lastDca = state.dca.at(-1);
+  const last = state.dca.at(-1);
+  const legacy = readLegacy();
+  const template = positions.map(p => `    '${p.id}': { date: '', invested: 0, a0: 0, a1: 0 },   // ${p.pair} (${p.protocol}, ${p.network})`).join('\n');
+  copyMap = { pools: template, legacy: legacy ? manualFileText(legacy) : '' };
+  const row = (k, v) => `<tr><td>${k}</td><td class="num r">${v}</td></tr>`;
 
   $('#manual-root').innerHTML = `
   <div class="card">
-    <h2 class="font-semibold">Participaciones del fondo</h2>
-    <p class="label mb-3">Base inicial: ${state.shares.base}. Precio por participación = valor total de la cartera ÷ participaciones.</p>
-    <div class="mb-3 flex flex-wrap gap-6">
-      <div><div class="label">Total participaciones</div><div class="num text-xl">${fmt(shares, { maximumFractionDigits: 4 })}</div></div>
-      <div><div class="label">Precio actual</div><div class="num text-xl text-[#22c55e]">${usd(fund.usd)}</div></div>
-    </div>
-    <form data-form="shares" class="grid items-end gap-3 sm:grid-cols-4">
-      ${field('qty', 'Cantidad', '', 'type="number" step="any" min="0" required')}
-      ${field('price', 'Precio unitario (USD)', fund.usd.toFixed(2))}
-      <button class="btn" name="type" value="add">Añadir</button>
-      <button class="btn btn-ghost" name="type" value="sub">Restar</button>
-      <p class="msg neg text-sm sm:col-span-4"></p>
-    </form>
-    ${mov.length ? `<div class="scroll-x mt-3"><table class="tbl"><thead><tr><th>Fecha</th><th>Tipo</th><th class="r">Cantidad</th><th class="r">Precio</th></tr></thead><tbody>
-      ${mov.map(m => `<tr><td class="num">${m.date.slice(0, 10)}</td><td>${m.type === 'add' ? 'Ampliación' : 'Reducción'}</td><td class="num r">${fmt(m.qty)}</td><td class="num r">${usd(m.price)}</td></tr>`).join('')}
-    </tbody></table></div>` : ''}
+    <h2 class="font-semibold">Datos manuales</h2>
+    <p class="label mb-2">Se leen del archivo <b>data/manual.js</b> de tu repositorio y se ven igual en todos tus dispositivos. Para cambiarlos: GitHub → <b>data/manual.js</b> → lápiz → editar → <b>Commit changes</b> → recarga la web (Ctrl+F5). Tras cada cambio de la web o del archivo puede tardar un par de minutos en publicarse.</p>
+    ${err ? `<p class="neg text-sm">No se pudo leer data/manual.js: ${esc(err)}</p>` : '<p class="label">Archivo leído correctamente.</p>'}
   </div>
 
   <div class="grid gap-4 lg:grid-cols-2">
-    <form data-form="cex" class="card">
-      <h2 class="font-semibold">Fondos en exchanges (CEX)</h2>
-      <p class="label mb-3">Al guardar se sobrescribe lo anterior.</p>
-      <div class="grid grid-cols-2 gap-3">${CEX_ASSETS.map(a => field(a, a, state.cex[a] || '')).join('')}</div>
-      <button class="btn mt-3">Guardar CEX</button>
-    </form>
-    <form data-form="dual" class="card">
-      <h2 class="font-semibold">Dual Investment (red BSC)</h2>
-      <p class="label mb-3">Posiciones activas. Al guardar se sobrescribe lo anterior.</p>
-      <div class="grid grid-cols-2 gap-3">${DUAL_ASSETS.map(a => field(a, a, state.dual.find(p => p.asset === a)?.amount ?? '')).join('')}${field('debtUSDT', 'Deuda USDT (se resta del total)', state.dualDebt || '')}</div>
-      <button class="btn mt-3">Guardar Dual Investment</button>
-    </form>
+    <div class="card"><h2 class="mb-2 font-semibold">Fondos en exchanges</h2><table class="tbl"><tbody>
+      ${CEX_ASSETS.map(a => row(a, qty(state.cex[a] || 0))).join('')}</tbody></table></div>
+    <div class="card"><h2 class="mb-2 font-semibold">Dual Investment (BSC), SKY en staking y DCA</h2><table class="tbl"><tbody>
+      ${DUAL_ASSETS.map(a => row('Dual ' + a, qty(state.dual.find(p => p.asset === a)?.amount || 0))).join('')}
+      ${row('Deuda USDT (Dual)', usd(state.dualDebt))}
+      ${row('SKY en staking', qty(state.stakingManual.SKY || 0))}
+      ${row('DCA: filas / última', last ? `${state.dca.length} · ${last.month} · deuda ${usd(last.debt)}` : 'sin datos')}</tbody></table></div>
   </div>
 
-  <div class="card">
-    <h2 class="font-semibold">DCA con colateral (mensual)</h2>
-    <p class="label mb-3">Cada guardado añade una fila nueva: puedes registrar varias compras en el mismo mes.</p>
-    <p class="label mb-3">Contado en el total de la cartera: <b class="num">${qty(lastDca?.btc || 0)} BTC</b> y deuda <b class="num">${usd(lastDca?.debt || 0)}</b>${lastDca ? ` (última fila: ${lastDca.month})` : ''}. De la <b>última fila</b> se cuentan en el patrimonio el «BTC acumulado» (como colateral) y la «Deuda acumulada» (como deuda USDC); ambos en la categoría «DCA colateral». Si ese BTC o esa deuda ya aparecen leídos on-chain (una dirección BTC monitorizada o Aave), se contarían dos veces.</p>
-    <form data-form="dca" class="grid items-end gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      ${field('month', 'Mes', '', 'type="month" required')}
-      ${field('buyUsd', 'Compra (USD)')}${field('debt', 'Deuda acumulada')}
-      ${field('ltv', '% LTV')}${field('btc', 'BTC acumulado')}
-      <button class="btn">Añadir compra</button>
-      <p class="msg neg text-sm sm:col-span-3 lg:col-span-6"></p>
-    </form>
-    ${dca.length ? `<div class="scroll-x mt-3"><table class="tbl"><thead><tr><th>Mes</th><th class="r">Compra</th><th class="r">Deuda</th><th class="r">% LTV</th><th class="r">BTC</th><th class="r">Valor sin deuda</th><th class="r">Precio compra est.</th><th></th></tr></thead><tbody>
-      ${dca.map(r => `<tr><td class="num">${r.month}</td><td class="num r">${usd(r.buyUsd)}</td><td class="num r">${usd(r.debt)}</td><td class="num r">${fmt(r.ltv)}%</td><td class="num r">${qty(r.btc)}</td><td class="num r ${cls(r.valueNoDebt)}">${usd(r.valueNoDebt)}</td><td class="num r">${r.buyPriceEst == null ? '—' : usd(r.buyPriceEst)}</td><td><button class="btn btn-ghost" data-del-dca="${r.id}" type="button">Quitar</button></td></tr>`).join('')}
-    </tbody></table></div>` : ''}
+  <div class="card"><h2 class="mb-2 font-semibold">Participaciones del fondo</h2>
+    <p class="label">Base ${fmt(state.shares.base)} + ${state.shares.movements.length} movimientos = <b class="num">${fmt(shares, { maximumFractionDigits: 4 })}</b> participaciones · precio actual <b class="num">${usd(fund.usd)}</b> / <b class="num">${eur(fund.eur)}</b></p></div>
+
+  <div class="card"><h2 class="mb-2 font-semibold">Entradas de pools</h2>
+    <p class="label mb-3">Las posiciones son las que carga ahora la pestaña Pools (se actualizan solas; las cerradas desaparecen). Para calcular IL, tiempo y ROI, copia la línea de cada pool a la sección <b>poolEntries</b> de data/manual.js y rellena fecha (AAAA-MM-DD), importe invertido y, si quieres el IL, las cantidades iniciales a0 y a1 de los dos tokens.</p>
+    ${positions.length ? `<div class="scroll-x"><table class="tbl"><thead><tr><th>Pool</th><th>id</th><th>Entrada en el archivo</th></tr></thead><tbody>
+      ${positions.map(p => { const e = state.poolEntries[p.id]; return `<tr><td>${esc(p.pair)}<div class="label">${esc(p.protocol)} · ${esc(p.network)}</div></td><td class="num">${esc(p.id)}</td><td>${e ? `<span style="color:#22c55e">sí</span> · ${esc(e.date)} · ${usd(e.invested)}` : '<span class="label">falta</span>'}</td></tr>`; }).join('')}</tbody></table></div>
+      <button class="btn mt-3" data-copy="pools" type="button">Copiar líneas de todas las posiciones</button> <span id="copy-msg-pools" class="label ml-2"></span>` : '<p class="label">No hay posiciones de pools cargadas.</p>'}
+    ${Object.keys(state.poolEntries).some(id => !positions.some(p => p.id === id)) ? '<p class="label mt-3">Hay entradas en el archivo de pools que ya no existen (cerrados). Puedes borrar esas líneas.</p>' : ''}
   </div>
 
-  <div class="card">
-    <h2 class="font-semibold">Direcciones BTC monitorizadas</h2>
-    <p class="label mb-3">Introduce solo la dirección: las compras (fecha, cantidad y precio a fecha) se leen solas de mempool.space y aparecen en la pestaña Bitcoin.</p>
-    <form data-form="btcaddr" class="flex flex-wrap items-end gap-3">
-      <label class="label min-w-[16rem] flex-1">Nueva dirección BTC<input class="inp num mt-1" name="address" type="text" autocomplete="off" required></label>
-      <button class="btn">Añadir</button>
-      <p class="msg neg w-full text-sm"></p>
-    </form>
-    ${market.btcFailed?.length ? `<p class="neg mt-2 text-sm">No se pudo leer: ${market.btcFailed.map(short).join(', ')}</p>` : ''}
-    <p class="label mt-3">Para que una dirección sea permanente (visible desde cualquier dispositivo): en tu repositorio de GitHub entra en <b>Actions → Añadir dirección BTC → Run workflow</b> y pega la dirección.</p>
-  </div>
-
-  <div class="card">
-    <h2 class="font-semibold">Entradas de pools (para IL, tiempo y ROI)</h2>
-    <p class="label mb-3">Para cada posición actual: fecha de entrada e importe invertido (USD). Opcional: cantidades iniciales de cada token, para calcular la pérdida impermanente. Al guardar se sobrescribe todo lo anterior (no se acumula).</p>
-    ${positions.length ? `<form data-form="poolentries" class="space-y-3">
-      ${positions.map(p => { const e = state.poolEntries?.[p.id] || {}; return `<div class="grid items-end gap-3 border-t border-[#2d3142] pt-3 sm:grid-cols-4">
-        <div class="sm:col-span-4"><b>${p.pair}</b> <span class="label">${p.protocol} · ${p.network}${p.staked ? ' · staked' : ''}</span></div>
-        ${field(p.id + '|date', 'Fecha de entrada', e.date || '', 'type="date"')}
-        ${field(p.id + '|invested', 'Importe invertido (USD)', e.invested ?? '')}
-        ${field(p.id + '|a0', 'Cantidad inicial ' + p.tokens[0].symbol, e.a0 ?? '')}
-        ${field(p.id + '|a1', 'Cantidad inicial ' + (p.tokens[1]?.symbol || ''), e.a1 ?? '')}</div>`; }).join('')}
-      <button class="btn">Guardar entradas</button>
-      <p class="msg neg text-sm"></p>
-    </form>` : '<p class="label">No hay posiciones de pools cargadas.</p>'}
-  </div>
-
-  <div class="card">
-    <h2 class="font-semibold">Staking manual</h2>
-    <p class="label mb-3">El SKY en staking no se puede leer solo: indica la cantidad (se cuenta como staking en Ethereum, Ledger). Los APR salen de DefiLlama. Al guardar se sobrescribe lo anterior.</p>
-    <form data-form="staking" class="grid items-end gap-3 sm:grid-cols-4">
-      ${field('sky', 'SKY en staking (cantidad)', state.stakingManual?.SKY ?? '')}
-      <button class="btn">Guardar</button>
-    </form>
-  </div>`;
+  ${legacy ? `<div class="card" style="border-color:#fbbf24"><h2 class="mb-2 font-semibold">Datos de la versión anterior guardados en este navegador</h2>
+    <p class="label mb-3">Antes los datos se escribían en formularios de la web y se guardaban solo en este navegador. Para pasarlos al archivo: pulsa <b>Copiar</b>, abre <b>data/manual.js</b> en GitHub (si no existe: Add file → Create new file → data/manual.js), borra su contenido, pega y haz Commit.</p>
+    <button class="btn" data-copy="legacy" type="button">Copiar el contenido para data/manual.js</button> <span id="copy-msg-legacy" class="label ml-2"></span>
+    <textarea class="inp num mt-3" rows="10" readonly>${esc(copyMap.legacy)}</textarea></div>` : ''}`;
 }
 
-$('#manual-root').addEventListener('submit', e => {
-  e.preventDefault();
-  const f = e.target, d = Object.fromEntries(new FormData(f));
-  try {
-    if (f.dataset.form === 'cex') store.setCex(d);
-    if (f.dataset.form === 'dual') store.setDualInvestment(DUAL_ASSETS.map(asset => ({ asset, amount: d[asset] })), d.debtUSDT);
-    if (f.dataset.form === 'dca') store.addDca(d);
-    if (f.dataset.form === 'btcaddr') store.addBtcAddress(d.address, [...WALLETS.btc, ...fileAddrs]);
-    if (f.dataset.form === 'poolentries') {
-      const by = {};
-      for (const [k, v] of Object.entries(d)) { const [id, fld] = k.split('|'); (by[id] ??= {})[fld] = v; }
-      store.setPoolEntries(by);
-    }
-    if (f.dataset.form === 'staking') store.setStaking({ sky: d.sky });
-    if (f.dataset.form === 'shares') store.addShareMovement({ type: e.submitter.value, qty: d.qty, price: d.price });
-  } catch (err) {
-    const msg = f.querySelector('.msg'); if (msg) msg.textContent = err.message;
-  }
-});
-$('#manual-root').addEventListener('click', e => {
-  const { delDca, delAddr } = e.target.dataset;
-  if (delDca) store.removeDca(delDca);
-  if (delAddr) store.removeBtcAddress(delAddr);
-});
-$('#export-btn').addEventListener('click', async () => {
-  const { dual, cex, shares, stakingManual, dualDebt, dca } = store.getState();
-  const json = JSON.stringify({ dual, cex, shares, stakingManual, dualDebt, dca: dca.slice(-1) }, null, 2);   // del DCA solo la última fila (la que cuenta para la deuda)
-  try { await navigator.clipboard.writeText(json); $('#export-msg').textContent = 'Copiado. Pégalo en data/manual.json de tu repositorio.'; }
-  catch { prompt('Copia este texto y pégalo en data/manual.json:', json); }
-});
-$('#reset-btn').addEventListener('click', () => {
-  if (confirm('¿Borrar todos los datos manuales? No se puede deshacer.')) store.resetAll();
+$('#manual-root').addEventListener('click', async e => {
+  const k = e.target.dataset.copy;
+  if (!k) return;
+  const msg = $('#copy-msg-' + k);
+  try { await navigator.clipboard.writeText(copyMap[k]); if (msg) msg.textContent = 'Copiado.'; }
+  catch { if (msg) msg.textContent = 'No se pudo copiar automáticamente: selecciona el texto y cópialo a mano.'; }
 });
 
 /* ---------- Arranque ---------- */
-// Si cambian las direcciones BTC, se vuelven a pedir saldos y compras
-let btcKey = null;
+let started = false;
 function sync() {
-  const addrs = allAddrs(), key = addrs.join('|');
-  refresh(true);
-  if (key === btcKey) return;
-  btcKey = key;
-  loadMarketData(addrs).then(m => { market = m; refresh(); });
-  loadBtcLedger(addrs, list => { ledger = list; refresh(); });
+  refresh();
+  if (started) return;
+  started = true;
+  loadMarketData(WALLETS.btc).then(m => { market = m; refresh(); });
+  loadBtcLedger(WALLETS.btc, list => { ledger = list; refresh(); });
 }
-store.subscribe(sync);
 showTab(location.hash.slice(1) || 'inicio');
-loadWalletsFile().then(a => { fileAddrs = a; sync(); });
 loadHistory().then(h => { historyData = h; refresh(); });
+store.load().then(sync);          // primero se leen los datos manuales (data/manual.js)

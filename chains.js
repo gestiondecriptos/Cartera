@@ -104,7 +104,7 @@ export const fetchEvm = () => eachUnit(
 /* ---- BSC: BNB y tokens BEP-20 de config.js (RPC público, sin clave) ---- */
 const bscCall = (method, params) => post(CHAINS.bsc.rpc, { jsonrpc: '2.0', id: 1, method, params })
   .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
-const hexToNum = (hex, dec) => Number(BigInt(hex || '0x0')) / 10 ** dec;
+const hexToNum = (hex, dec) => Number(BigInt(hex && hex !== '0x' ? hex : '0x0')) / 10 ** dec;
 export const fetchBsc = () => eachUnit(
   WALLETS.evm.map(w => ({ w, label: `BSC ${short(w.address)}` })),
   async ({ w }, out) => {
