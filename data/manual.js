@@ -13,6 +13,7 @@ export const MANUAL = {
 
   // 3) SKY en staking (cantidad)
   skyStaking: 2979.08,
+  psolStaking: 2.71925,
 
   // 4) Participaciones del fondo: base inicial y una línea por cada ampliación (add) o reducción (sub)
   shares: {
