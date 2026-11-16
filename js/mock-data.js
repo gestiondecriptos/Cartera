@@ -5,7 +5,7 @@ export const MOCK_EUR_USD = 1.08;
 const USD = {
   BTC: 95000, ETH: 3300, BNB: 620, SOL: 180, LINK: 18, SKY: 0.06, AAVE: 230, NEXO: 1.2,
   OKB: 50, TRX: 0.25, HYPE: 28, ATOM: 6, USDC: 1, USDT: 1, SYRUP: 0.4, PENDLE: 4.5,
-  CAKE: 2.5, WBTC: 95000, BTCB: 95000, PSOL: 190, JITOSOL: 215, MSOL: 230, JUP: 0.5, ARB: 0.4,
+  CAKE: 2.5, WBTC: 95000, BTCB: 95000, PSOL: 190, ARB: 0.4,
 };
 
 export const MOCK_PRICES = Object.fromEntries(
@@ -26,7 +26,6 @@ export const MOCK_OTHER_ONCHAIN = [
   { symbol: 'variableDebtEthUSDC', amount: 15000, network: 'Ethereum', wallet: '0xB939…86f2', custody: 'ledger' },
   { symbol: 'USDC', amount: 2000, network: 'Base', wallet: '0x34bC…890f', custody: 'metamask' },
   { symbol: 'HYPE', amount: 150, network: 'Hyperliquid', wallet: '0x34bC…890f', custody: 'metamask', category: 'staking' },
-  { symbol: 'SOL', amount: 40, network: 'Solana', wallet: '4gaS…zR12', custody: 'phantom' },
   { symbol: 'TRX', amount: 20000, network: 'Tron', wallet: 'TPR5…X31', custody: 'ledger', category: 'staking' },
   { symbol: 'SKY', amount: 10000, network: 'Ethereum', wallet: '0xB939…86f2', custody: 'ledger', category: 'staking' },
   { symbol: 'PENDLE', amount: 1000, network: 'Ethereum', wallet: '0xB939…86f2', custody: 'ledger', category: 'staking' },
@@ -34,7 +33,7 @@ export const MOCK_OTHER_ONCHAIN = [
 ];
 
 // APR de staking de ejemplo (%). Fase 3: sustituir por datos reales.
-export const MOCK_STAKING_APR = { SKY: 6.5, TRX: 4.5, HYPE: 2.2, ATOM: 15, PENDLE: 10, SOL: 7, PSOL: 7, JITOSOL: 7, MSOL: 7 };
+export const MOCK_STAKING_APR = { SKY: 6.5, TRX: 4.5, HYPE: 2.2, ATOM: 15, PENDLE: 10, SOL: 7 };
 
 // Pools de liquidez de EJEMPLO (TrackDeFi se conectará más adelante).
 // base/quote: el precio del par = precio(base) / precio(quote). IL, ROI y días son de ejemplo.
