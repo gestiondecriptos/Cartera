@@ -76,7 +76,7 @@ export const MANUAL = {
       { date: '2026-09-26', type: 'add', qty: 3, price: 71.50 },
       { date: '2026-10-16', type: 'add', qty: 4, price: 69.10 },
     ],
-
+},
   // 5) Estrategia DCA con BTC como colateral: una línea por compra. La ÚLTIMA línea es la que cuenta
   //    para la deuda del patrimonio (el BTC se lee solo de aBnbBTCB en BSC).
   dca: [
