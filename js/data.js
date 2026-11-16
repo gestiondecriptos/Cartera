@@ -142,3 +142,25 @@ export async function loadStakingApr() {
     return aprs;
   } catch (e) { console.warn('DefiLlama no disponible:', e.message); return {}; }
 }
+/** Histórico diario de precio BTC en EUR desde CoinGecko (caché 12 h) */
+export async function loadBtcEurHistory() {
+  const KEY = 'cripto-dashboard:btc-eur-hist:v1';
+  try {
+    const c = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (c && Date.now() - c.t < 12 * 3600e3 && c.map) return c.map;
+  } catch { /* sin caché */ }
+  try {
+    const j = await get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=max&interval=daily');
+    const map = {};
+    for (const [ts, price] of j.prices || []) {
+      if (price > 0) map[new Date(ts).toISOString().slice(0, 10)] = price;
+    }
+    if (Object.keys(map).length) {
+      try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map })); } catch {}
+    }
+    return map;
+  } catch (e) {
+    console.warn('CoinGecko histórico BTC EUR no disponible:', e.message);
+    return {};
+  }
+}
