@@ -32,8 +32,8 @@ export function render(ctx) {
       <div class="card"><div class="label">Generación diaria</div><div class="num text-2xl">${usd(daily)}</div></div>
     </div>
     <div class="card scroll-x"><table class="tbl">
-      <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria (USD)</th></tr></thead>
+      <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria</th></tr></thead>
       <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">(${r.src})</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, el valor por defecto.</p></div>`;
+    <p class="label mt-3">Saldos de staking (SKY, de «Datos manuales»). APR: de DefiLlama; y si no, el valor definido por defecto.</p></div>`;
 }
