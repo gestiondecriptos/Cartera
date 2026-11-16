@@ -5,8 +5,10 @@ const n = v => (Number.isFinite(+v) ? +v : 0);
 
 export function manualFileText(m = {}) {
   const cex = CEX_ASSETS.map(a => `${a}: ${n(m.cex?.[a])}`).join(', ');
-  const dualAmt = Object.fromEntries((m.dual || []).map(p => [p.asset, p.amount]));
-  const dual = DUAL_ASSETS.map(a => `${a}: ${n(dualAmt[a])}`).join(', ');
+  const dL = Object.fromEntries((m.dualLedger || []).map(p => [p.asset, p.amount]));
+  const dB = Object.fromEntries((m.dualBnb || []).map(p => [p.asset, p.amount]));
+  const dualLedger = DUAL_ASSETS.map(a => `${a}: ${n(dL[a])}`).join(', ');
+  const dualBnb = DUAL_ASSETS.map(a => `${a}: ${n(dB[a])}`).join(', ');
   const mov = (m.shares?.movements || []).map(x => `      { date: '${String(x.date).slice(0, 10)}', type: '${x.type === 'sub' ? 'sub' : 'add'}', qty: ${n(x.qty)}, price: ${n(x.price)} },`).join('\n');
   const dca = (m.dca || []).map(r => `    { month: '${r.month}', buyUsd: ${n(r.buyUsd)}, debt: ${n(r.debt)}, ltv: ${n(r.ltv)}, btc: ${n(r.btc)} },`).join('\n');
   const pe = Object.entries(m.poolEntries || {}).map(([id, e]) => `    '${id}': { date: '${e.date}', invested: ${n(e.invested)}, a0: ${n(e.a0)}, a1: ${n(e.a1)} },`).join('\n');
@@ -19,9 +21,11 @@ export const MANUAL = {
   // 1) Fondos en exchanges: cantidad de cada activo (EUR en euros)
   cex: { ${cex} },
 
-  // 2) Dual Investment (red BSC): cantidad de cada activo y deuda en USDT
-  dual: { ${dual} },
-  dualDebtUSDT: ${n(m.dualDebt)},
+  // 2) Dual Investment (red BSC): separado por wallet Metamask Ledger y Metamask BNB
+  dualLedger: { ${dualLedger} },
+  dualDebtLedger: ${n(m.dualDebtLedger)},
+  dualBnb: { ${dualBnb} },
+  dualDebtBnb: ${n(m.dualDebtBnb)},
 
   // 3) Staking manual (cantidades): SKY y PSOL de Phantom
   skyStaking: ${n(m.stakingManual?.SKY)},
