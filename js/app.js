@@ -1,4 +1,4 @@
-import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr } from './data.js';
+import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory } from './data.js';
 import { manualFileText } from './manualtext.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
@@ -20,6 +20,7 @@ const cls = n => (n < 0 ? 'neg' : '');
 let market = null;
 let ledger = [];
 let historyData = [];
+let btcEurHist = {};
 let aprLive = {}, aprTried = false;
 
 /* ---------- Navegación por pestañas ---------- */
@@ -49,7 +50,7 @@ function refresh() {
   const view = aggregateHoldings({ onchain: market.onchain, state, prices: market.prices, eurUsd: market.eurUsd });
   const shares = store.totalShares();
   const fund = fundPrice(view.totalUsd, market.eurUsd, shares);
-  const ctx = { view, state, market, ledger, history: historyData, aprLive };
+  const ctx = { view, state, market, ledger, history: historyData, btcEurHist, aprLive };
   // Si una pestaña falla, las demás siguen funcionando y se avisa en pantalla
   [['Inicio', () => renderInicio(view, fund, shares)],
    ['Inicio (gráficos)', () => home.render(ctx)],
@@ -220,4 +221,5 @@ function sync() {
 }
 showTab(location.hash.slice(1) || 'inicio');
 loadHistory().then(h => { historyData = h; refresh(); });
+loadBtcEurHistory().then(m => { btcEurHist = m; refresh(); });
 store.load().then(sync);          // primero se leen los datos manuales (data/manual.js)
