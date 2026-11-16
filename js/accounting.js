@@ -3,29 +3,37 @@ import { UNDERLYING, COINGECKO_IDS, LIQUID_STAKING } from './config.js';
 
 // Prefijos de red que Aave v3 añade al nombre del aToken (aEthWETH, aBasWETH, aArbUSDC…)
 const NET_RE = /^(Eth|Bas|Arb|Opt|Pol|Avax|Bnb|Gno|Scr|Lin|Mnt|Son|Uni)(?=[A-Za-z])/i;
-const known = k => k in COINGECKO_IDS || k in UNDERLYING || k === 'EUR';
+const CANON = { AAVE: 'AAVE', XAUT: 'XAUT', WSTETH: 'wstETH', CBBTC: 'cbBTC', USDT0: 'USDT' };
+const fixCase = k => CANON[k.toUpperCase()] || k;
+const known = k => { const c = fixCase(k); return c in COINGECKO_IDS || c in UNDERLYING || c in LIQUID_STAKING || c === 'EUR'; };
 // quita el prefijo de red solo si lo que queda es un activo conocido (así «LINK» no pierde «LIN»)
-const strip = x => (known(x) ? x : known(x.replace(NET_RE, '')) ? x.replace(NET_RE, '') : x);
+const strip = x => {
+  const c = fixCase(x);
+  if (known(c)) return c;
+  const r = fixCase(x.replace(NET_RE, ''));
+  return known(r) ? r : c;
+};
 
 /**
  * Normaliza un símbolo:
  *  aEthWETH, AWETH -> ETH · aLINK, ALINK -> LINK · aAAVE, AAAVE -> AAVE   (colateral, suma al subyacente)
- *  variableDebtArbUSDCn -> USDC con signo negativo                       (deuda)
- *  WETH -> ETH, BTCB/WBTC -> BTC
+ *  variableDebtArbUSDCn, variabelDebtBnbETH -> USDC/ETH con signo negativo (deuda)
+ *  WETH -> ETH, BTCB/WBTC/cbBTC -> BTC
  */
 export function normalizeSymbol(raw) {
-  let s = String(raw).trim(), sign = 1, aToken = false;
-  const debt = s.match(/^(?:variable|stable)debt(.+)$/i);
+  let s = String(raw).replace(/\s+/g, ''), sign = 1, aToken = false;
+  const debt = s.match(/^(?:variable|variabel|stable)debt(.+)$/i);
   if (debt) {
     sign = -1;
     s = strip(debt[1]);
-  } else if (!known(s) && /^[aA][A-Z]/.test(s)) {
+  } else if (!known(s) && /^[aA][A-Za-z]/.test(s)) {
     const rest = strip(s.slice(1));
-    if (/^a/.test(s) || known(rest)) { aToken = true; s = rest; }   // «aXxx» siempre; «AXXX» solo si lo que sigue es un activo conocido
+    if (/^a/.test(s) || known(rest)) { aToken = true; s = rest; }
+  } else {
+    s = fixCase(s);
   }
   return { symbol: UNDERLYING[s] || s, sign, aToken };
 }
-
 const priceUsd = (symbol, prices, eurUsd) =>
   symbol === 'EUR' ? eurUsd : prices[symbol]?.usd ?? null;
 
@@ -38,15 +46,17 @@ const add = (obj, key, v) => { obj[key] = (obj[key] || 0) + v; };
 export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
   const items = [
     ...onchain,
-    ...state.dual.map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', custody: 'exchange', category: 'dual' })),
+    ...(state.dualLedger || []).map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', wallet: '0xB939…86f2', custody: 'ledger', category: 'dual' })),
+    ...(state.dualDebtLedger > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebtLedger, network: 'BSC', wallet: '0xB939…86f2', custody: 'ledger' }] : []),
+    ...(state.dualBnb || []).map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', wallet: '0x34bC…890f', custody: 'metamask', category: 'dual' })),
+    ...(state.dualDebtBnb > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebtBnb, network: 'BSC', wallet: '0x34bC…890f', custody: 'metamask' }] : []),
     ...Object.entries(state.cex).map(([symbol, amount]) => ({ symbol, amount, network: 'CEX', custody: 'exchange', category: 'libre' })),
-    // Deuda USDT del Dual Investment y «Deuda acumulada» de la ÚLTIMA fila del DCA (se restan del total)
-    ...(state.dualDebt > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebt, network: 'BSC', custody: 'exchange' }] : []),
-    // Estrategia DCA: solo la «Deuda acumulada» de la ÚLTIMA fila (el BTC colateral ya se lee de aBnbBTCB en BSC)
-    ...(state.dca?.at(-1)?.debt > 0 ? [{ symbol: 'variableDebtUSDC', amount: state.dca.at(-1).debt, network: 'DCA colateral', custody: 'exchange' }] : []),
     ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({
-      symbol, amount, network: symbol === 'PSOL' ? 'Solana' : 'Ethereum',
-      custody: symbol === 'PSOL' ? 'phantom' : 'ledger', category: 'staking',
+      symbol, amount,
+      network: symbol === 'PSOL' ? 'Solana' : 'Ethereum',
+      wallet: symbol === 'PSOL' ? 'Phantom' : '0xB939…86f2',
+      custody: symbol === 'PSOL' ? 'phantom' : 'ledger',
+      category: 'staking',
     })),
   ];
   const map = new Map();
@@ -58,8 +68,8 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     if (!it.amount) continue;
     const n = normalizeSymbol(it.symbol);
     let symbol = n.symbol, amount = it.amount * n.sign;
-    let px = priceUsd(symbol, prices, eurUsd) ?? it.priceUsd ?? null; // priceUsd del item: respaldo para tokens sin precio propio
-    const base = LIQUID_STAKING[symbol];                              // p. ej. PSOL -> SOL (cantidad equivalente, mismo valor)
+    let px = priceUsd(symbol, prices, eurUsd) ?? it.priceUsd ?? null;
+    const base = LIQUID_STAKING[symbol];
     if (base && prices[symbol]?.usd && prices[base]?.usd) { amount *= prices[symbol].usd / prices[base].usd; symbol = base; px = prices[base].usd; }
     if (px == null) missing.add(symbol);
     const usd = amount * (px ?? 0);
