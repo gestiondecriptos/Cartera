@@ -33,11 +33,18 @@ function chart(pts) {
 // Evolución comparativa: Precio Participación (EUR) vs Precio Bitcoin (EUR) en base 100
 function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) {
   const eur = n => fmt(n, { style: 'currency', currency: 'EUR' });
+  const nearestBtc = d => {
+    if (btcEurHist[d]) return btcEurHist[d];
+    const t = Date.parse(d), keys = Object.keys(btcEurHist);
+    if (!keys.length) return null;
+    const best = keys.reduce((a, b) => Math.abs(Date.parse(b) - t) < Math.abs(Date.parse(a) - t) ? b : a);
+    return Math.abs(Date.parse(best) - t) <= 7 * 864e5 ? btcEurHist[best] : null;
+  };
   const ptsMap = new Map();
   // 1. Puntos históricos manuales de movimientos de participaciones (precio BTC desde CoinGecko si está disponible)
   for (const m of state.shares?.movements || []) {
     if (m.date && m.price > 0) {
-      ptsMap.set(m.date, { t: Date.parse(m.date), fund: m.price, btc: btcEurHist[m.date] || null });
+      ptsMap.set(m.date, { t: Date.parse(m.date), fund: m.price, btc: nearestBtc(m.date) });
     }
   }
   // 2. Snapshots completos (tienen fundEur y btcUsd, con respaldo de CoinGecko)
