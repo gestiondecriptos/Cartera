@@ -144,13 +144,13 @@ export async function loadStakingApr() {
 }
 /** Histórico diario de precio BTC en EUR desde CoinGecko (caché 12 h) */
 export async function loadBtcEurHistory() {
-  const KEY = 'cripto-dashboard:btc-eur-hist:v2';
+ const KEY = 'cripto-dashboard:btc-eur-hist:v3';
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return c.map;
   } catch { /* sin caché */ }
   try {
-    const j = await get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=365&interval=daily');
+    const j = await get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=1825');
     const map = {};
     for (const [ts, price] of j.prices || []) {
       if (price > 0) map[new Date(ts).toISOString().slice(0, 10)] = price;
