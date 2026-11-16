@@ -62,7 +62,7 @@ export function render() {
       <div><div class="label">Bloques restantes</div><div class="num text-xl">${fmt(hv.remBlocks)}</div></div></div>` : '<div class="label p-6">No disponible: no se pudo leer la altura de bloque actual.</div>';
 
   root.innerHTML = `
-    <div class="flex flex-wrap items-center gap-2"><h2 class="mr-auto font-semibold">Rango de los gráficos</h2>
+    <div class="flex flex-wrap items-center gap-2"><h2 class="mr-auto font-semibold">RESUMEN</h2>
       ${Object.keys(RANGES).map(r => `<button class="btn ${r === range ? '' : 'btn-ghost'}" data-mrange="${r}" type="button">${r}</button>`).join('')}</div>
     ${d.errors.length ? `<p class="neg text-sm">No se pudo leer: ${d.errors.join(', ')}.</p>` : ''}
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -72,7 +72,7 @@ export function render() {
       ${stat('RSI diario (14)', L.rsi != null ? fmt(L.rsi, { maximumFractionDigits: 1 }) : '—', L.rsi > 75 ? 'sobrecompra' : L.rsi < 30 ? 'sobreventa' : 'zona neutral', '', S.rsi)}
       ${stat('Caída desde máximo', dd == null ? '—' : pct(dd, 1), 'máx. ' + (d.ath.value ? usd(d.ath.value) : '—'), dd < 0 ? 'neg' : '')}
     </div>
-    <p class="label">Verde = zona de compra · Rojo = zona de venta. MVRV: comprar &lt; 1, vender &gt; 2,5 · Precio vs precio realizado: comprar si está por debajo, vender si lo supera más del doble · Precio vs media de 200 semanas: comprar por debajo, vender si la supera más del doble · RSI: comprar &lt; 30, vender &gt; 75.</p>
+    <p class="label">Verde = zona de compra · Rojo = zona de venta.</p>
     ${card('Precio y precio realizado', 'El precio realizado es el coste medio de todas las monedas en su último movimiento.', has(d.realized)
       ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
     ${card('MVRV', 'Precio de mercado ÷ precio realizado. Por debajo de 1, el mercado cotiza bajo el coste medio on-chain.', has(d.mvrv)
