@@ -35,5 +35,5 @@ export function render(ctx) {
       <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria (USD)</th></tr></thead>
       <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">(${r.src})</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, el valor por defecto (4,7% SKY · 3,3% TRX · 2,2% HYPE · 14% ATOM · 1,5% PENDLE · 5,5% SOL; se cambian en js/config.js).</p></div>`;
+    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, el valor por defecto.</p></div>`;
 }
