@@ -200,7 +200,6 @@ function renderManual(state, view, fund, shares) {
     ${Object.keys(state.poolEntries).some(id => !positions.some(p => p.id === id)) ? '<p class="label mt-3">Hay entradas en el archivo de pools que ya no existen (cerrados). Puedes borrar esas líneas.</p>' : ''}
   </div>`;
 }
-}
 
 $('#manual-root').addEventListener('click', async e => {
   const k = e.target.dataset.copy;
