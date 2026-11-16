@@ -19,12 +19,22 @@ export const MANUAL = {
     base: 0,
     movements: [
       { date: '2017-12-21', type: 'add', qty: 5, price: 10 },
+      { date: '2017-12-23', type: 'add', qty: 10, price: 10 },
       { date: '2018-01-04', type: 'add', qty: 5, price: 10 },
+      { date: '2018-01-11', type: 'add', qty: 10, price: 10 },
       { date: '2018-04-13', type: 'add', qty: 5, price: 5 },
+      { date: '2018-04-13', type: 'add', qty: 5, price: 5 },
+      { date: '2018-04-14', type: 'add', qty: 5, price: 5 },
       { date: '2018-05-14', type: 'add', qty: 10, price: 6.40 },
+      { date: '2018-05-14', type: 'add', qty: 10, price: 6.40 },
+      { date: '2018-05-14', type: 'add', qty: 10, price: 6.40 },
+      { date: '2018-05-14', type: 'add', qty: 25, price: 6.40 },
+      { date: '2020-08-10', type: 'remove', qty: 25, price: 5.00 },
       { date: '2020-08-10', type: 'add', qty: 25, price: 5.00 },
       { date: '2020-09-10', type: 'add', qty: 50, price: 5.00 },
       { date: '2020-11-13', type: 'add', qty: 25, price: 6.40 },
+      { date: '2021-01-05', type: 'remove', qty: 25, price: 10.50 },
+      { date: '2021-01-05', type: 'remove', qty: 25, price: 10.50 },
       { date: '2021-01-05', type: 'add', qty: 25, price: 10.50 },
       { date: '2021-01-08', type: 'add', qty: 10, price: 12.00 },
       { date: '2021-01-25', type: 'add', qty: 5, price: 11.20 },
@@ -66,7 +76,7 @@ export const MANUAL = {
       { date: '2026-09-26', type: 'add', qty: 3, price: 71.50 },
       { date: '2026-10-16', type: 'add', qty: 4, price: 69.10 },
     ],
-},
+  },
   // 5) Estrategia DCA con BTC como colateral: una línea por compra. La ÚLTIMA línea es la que cuenta
   //    para la deuda del patrimonio (el BTC se lee solo de aBnbBTCB en BSC).
   dca: [
