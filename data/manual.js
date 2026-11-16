@@ -16,7 +16,7 @@ export const MANUAL = {
 
   // 4) Participaciones del fondo: base inicial y una línea por cada ampliación (add) o reducción (sub)
   shares: {
-    base: 10,
+    base: 0,
     movements: [
       { date: '2017-12-21', type: 'add', qty: 5, price: 10 },
       { date: '2017-12-23', type: 'add', qty: 10, price: 10 },
