@@ -7,7 +7,7 @@ const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'];
 const aprFor = (sym, live) => live?.[sym] ? { apr: live[sym].apr, src: live[sym].label } : { apr: STAKING_APR_DEFAULT[sym] ?? 0, src: 'por defecto' };
 
 export function stakingData({ view, market, aprLive }) {
-  // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL, JitoSOL…)
+  // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL…)
   const extra = view.holdings.filter(h => h.sources.some(s => s.category === 'staking')).map(h => h.symbol);
   const rows = [...new Set([...TOKENS, ...extra])].map(sym => {
     const h = view.holdings.find(x => x.symbol === sym);
@@ -35,5 +35,5 @@ export function render(ctx) {
       <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria</th></tr></thead>
       <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">(${r.src})</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="label mt-3">Saldos de staking (SKY, de «Datos manuales»). APR: de DefiLlama; y si no, el valor definido por defecto.</p></div>`;
+    <p class="label mt-3">Saldos manuales de SKY y PSOL (Phantom), junto con el staking detectado en otras redes. PSOL se convierte a su equivalente en SOL. APR: de DefiLlama; y si no, el valor definido por defecto.</p></div>`;
 }
