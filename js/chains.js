@@ -1,4 +1,4 @@
-// Saldos reales por red con APIs públicas gratuitas: EVM (Blockscout), Hyperliquid, Solana, Tron y Cosmos.
+// Saldos reales por red con APIs públicas gratuitas: EVM (Blockscout), Hyperliquid, Tron y Cosmos.
 import { WALLETS, CHAINS, COINGECKO_IDS, STAKING_SYMBOLS } from './config.js';
 import { normalizeSymbol } from './accounting.js';
 import { getKey } from './keys.js';
@@ -131,58 +131,6 @@ export const fetchHyperliquid = () => eachUnit(
     push(out, base, 'HYPE', Number(deleg.undelegated || 0) + Number(deleg.totalPendingWithdrawal || 0));
   });
 
-/* ---- Solana: SOL + tokens SPL (solo los de config.js) ---- */
-async function rpc(method, params) {
-  const errs = [];
-  for (const url of CHAINS.solanaRpc) {
-    try {
-      const j = await post(url, { jsonrpc: '2.0', id: 1, method, params });
-      if (j.error) throw new Error(j.error.message);
-      return j.result;
-    } catch (e) { errs.push(`${new URL(url).hostname}: ${why(e)}`); }   // prueba el siguiente servidor
-  }
-  throw new Error(errs.join('; '));
-}
-export const fetchSolana = () => eachUnit(
-  WALLETS.solana.map(a => ({ a, label: `Solana ${short(a)}` })),
-  async ({ a }, out) => {
-    const hKey = getKey('HELIUS_API_KEY');
-    const base = { network: 'Solana', wallet: short(a), custody: 'phantom' };
-    let heliusErr = null;
-    if (hKey) {
-      // API DAS de Helius: SOL + todos los tokens en una sola llamada. Solo se aceptan los tokens de CHAINS.solanaMints (los demás podrían ser falsificaciones)
-      try {
-        const j = await post(`https://mainnet.helius-rpc.com/?api-key=${hKey}`, { jsonrpc: '2.0', id: 1, method: 'getAssetsByOwner', params: { ownerAddress: a, page: 1, limit: 1000, displayOptions: { showFungible: true, showNativeBalance: true } } });
-        if (j.error) throw new Error(j.error.message);
-        push(out, base, 'SOL', (j.result?.nativeBalance?.lamports || 0) / 1e9);
-        for (const it of j.result?.items || []) {
-          const ti = it.token_info;
-          if (!ti || !String(it.interface || '').startsWith('Fungible')) continue;
-          const amount = Number(ti.balance) / 10 ** Number(ti.decimals ?? 0), m = CHAINS.solanaMints[it.id];
-          if (m) push(out, base, m.symbol, amount, m.category);
-          else if (amount > 0 && ti.symbol) out.ignored.push(`${ti.symbol} (Solana, mint desconocido)`);
-        }
-        return;
-      } catch (e) { heliusErr = `Helius: ${why(e)}`; console.warn('Helius falló, se prueban los RPC públicos', e.message); }
-    }
-    try {
-    // una consulta por token conocido (más ligera y compatible con los servidores públicos que una búsqueda general)
-    const mints = Object.keys(CHAINS.solanaMints);
-    const [bal, ...toks] = await Promise.all([
-      rpc('getBalance', [a]),
-      ...mints.map(mint => rpc('getTokenAccountsByOwner', [a, { mint }, { encoding: 'jsonParsed' }])),
-    ]);
-    push(out, base, 'SOL', (bal.value || 0) / 1e9);
-    toks.forEach((t, i) => {
-      const m = CHAINS.solanaMints[mints[i]];
-      for (const { account } of t.value || []) {
-        const ta = account?.data?.parsed?.info?.tokenAmount;
-        push(out, base, m.symbol, Number(ta?.uiAmountString ?? ta?.uiAmount ?? 0), m.category);
-      }
-    });
-    } catch (e) { throw new Error([heliusErr, e.message].filter(Boolean).join('; ')); }
-  });
-
 /* ---- Tron: TRX, TRX en staking (Stake 2.0 y 1.0) y TRC-20 ---- */
 export const fetchTron = () => eachUnit(
   WALLETS.tron.map(a => ({ a, label: `Tron ${short(a)}` })),
@@ -224,7 +172,7 @@ export const fetchCosmos = () => eachUnit(
 
 /** Lee todas las redes en paralelo. status: live | partial (alguna lectura falló) | mock (todas fallaron) */
 export async function loadChains() {
-  const jobs = { evm: fetchEvm, bsc: fetchBsc, hyperliquid: fetchHyperliquid, solana: fetchSolana, tron: fetchTron, cosmos: fetchCosmos };
+  const jobs = { evm: fetchEvm, bsc: fetchBsc, hyperliquid: fetchHyperliquid, tron: fetchTron, cosmos: fetchCosmos };
   const sources = {}, items = {}, failed = [], ignored = new Set();
   await Promise.all(Object.entries(jobs).map(async ([name, fn]) => {
     let r;
