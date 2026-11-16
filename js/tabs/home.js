@@ -31,19 +31,22 @@ function chart(pts) {
 }
 
 // Evolución comparativa: Precio Participación (EUR) vs Precio Bitcoin (EUR) en base 100
-function fundVsBtcChart({ state, view, market, history = [] }) {
+function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) {
   const eur = n => fmt(n, { style: 'currency', currency: 'EUR' });
   const ptsMap = new Map();
-  // 1. Puntos históricos manuales de movimientos de participaciones (solo fecha + precio participación)
+  // 1. Puntos históricos manuales de movimientos de participaciones (precio BTC desde CoinGecko si está disponible)
   for (const m of state.shares?.movements || []) {
-    if (m.date && m.price > 0) ptsMap.set(m.date, { t: Date.parse(m.date), fund: m.price, btc: null });
+    if (m.date && m.price > 0) {
+      ptsMap.set(m.date, { t: Date.parse(m.date), fund: m.price, btc: btcEurHist[m.date] || null });
+    }
   }
-  // 2. Snapshots completos (tienen fundEur y btcUsd)
+  // 2. Snapshots completos (tienen fundEur y btcUsd, con respaldo de CoinGecko)
   for (const h of history) {
     if (h.partial || !(h.fundEur > 0)) continue;
     const d = h.t.slice(0, 10);
     const eurUsd = h.totalEur > 0 ? h.totalUsd / h.totalEur : market.eurUsd;
-    ptsMap.set(d, { t: Date.parse(h.t), fund: h.fundEur, btc: h.btcUsd > 0 ? h.btcUsd / eurUsd : null });
+    const btcEur = h.btcUsd > 0 ? h.btcUsd / eurUsd : (btcEurHist[d] || null);
+    ptsMap.set(d, { t: Date.parse(h.t), fund: h.fundEur, btc: btcEur });
   }
   // 3. Punto actual en vivo
   const shares = state.shares.base + (state.shares.movements || []).reduce((t, m) => t + (m.type === 'add' ? m.qty : -m.qty), 0);
