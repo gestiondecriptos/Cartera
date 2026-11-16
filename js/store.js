@@ -7,8 +7,10 @@ const num = v => (Number.isFinite(+v) ? +v : 0);
 export function normalizeManual(m = {}) {
   return {
     cex: Object.fromEntries(CEX_ASSETS.map(a => [a, Math.max(0, num(m.cex?.[a]))])),
-    dual: DUAL_ASSETS.filter(a => num(m.dual?.[a]) > 0).map(a => ({ asset: a, amount: num(m.dual[a]), network: 'BSC' })),
-    dualDebt: Math.max(0, num(m.dualDebtUSDT)),
+    dualLedger: DUAL_ASSETS.filter(a => num(m.dualLedger?.[a] ?? m.dual?.[a]) > 0).map(a => ({ asset: a, amount: num(m.dualLedger?.[a] ?? m.dual?.[a]), network: 'BSC' })),
+    dualDebtLedger: Math.max(0, num(m.dualDebtLedger ?? m.dualDebtUSDT)),
+    dualBnb: DUAL_ASSETS.filter(a => num(m.dualBnb?.[a]) > 0).map(a => ({ asset: a, amount: num(m.dualBnb[a]), network: 'BSC' })),
+    dualDebtBnb: Math.max(0, num(m.dualDebtBnb)),
     stakingManual: {
       ...(num(m.skyStaking) > 0 ? { SKY: num(m.skyStaking) } : {}),
       ...(num(m.psolStaking) > 0 ? { PSOL: num(m.psolStaking) } : {}),
