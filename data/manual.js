@@ -8,8 +8,10 @@ export const MANUAL = {
   cex: { BTC: 0.03881092, ETH: 0, BNB: 4.00949375, USDC: 514.14, USDT: 0, EUR: 0, NEXO: 243.68, OKB: 2.19 },
 
   // 2) Dual Investment (red BSC): cantidad de cada activo y deuda en USDT
-  dual: { BTCB: 0.00294928, ETH: 0.044532, BNB: 0, USDT: 0 },
-  dualDebtUSDT: 0,
+  dualLedger: { BTCB: 0.001, ETH: 0, BNB: 0, USDT: 76.70 },
+  dualDebtLedger: 148.40,
+  dualBnb: { BTCB: 0.00296628, ETH: 0.04445563, BNB: 0, USDT: 0 },
+  dualDebtBnb: 320.23,
 
   // 3) SKY en staking (cantidad)
   skyStaking: 2979.08,
