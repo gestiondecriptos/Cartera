@@ -1,4 +1,6 @@
-import { usd, pct, stackedBar, donut, treemap, short } from '../format.js';
+import { usd, pct, fmt, cls, stackedBar, donut, treemap } from '../format.js';
+import { WALLETS } from '../config.js';
+import { fundPrice } from '../accounting.js';
 import { stakingData } from './staking.js';
 
 // Filtros del gráfico (se mantienen entre refrescos)
@@ -28,6 +30,78 @@ function chart(pts) {
     <div class="num mt-1 flex flex-wrap justify-between gap-2 text-xs text-slate-400"><span>${day(x0)}</span><span>mín ${usd(y0)} · máx ${usd(y1)} · <b class="${change < 0 ? 'neg' : 'text-[#22c55e]'}">${pct(change, 2)}</b></span><span>${day(x1)}</span></div>`;
 }
 
+// Evolución comparativa: Precio Participación (EUR) vs Precio Bitcoin (EUR) en base 100
+function fundVsBtcChart({ state, view, market, history = [] }) {
+  const eur = n => fmt(n, { style: 'currency', currency: 'EUR' });
+  const ptsMap = new Map();
+  // 1. Puntos históricos manuales de movimientos de participaciones (solo fecha + precio participación)
+  for (const m of state.shares?.movements || []) {
+    if (m.date && m.price > 0) ptsMap.set(m.date, { t: Date.parse(m.date), fund: m.price, btc: null });
+  }
+  // 2. Snapshots completos (tienen fundEur y btcUsd)
+  for (const h of history) {
+    if (h.partial || !(h.fundEur > 0)) continue;
+    const d = h.t.slice(0, 10);
+    const eurUsd = h.totalEur > 0 ? h.totalUsd / h.totalEur : market.eurUsd;
+    ptsMap.set(d, { t: Date.parse(h.t), fund: h.fundEur, btc: h.btcUsd > 0 ? h.btcUsd / eurUsd : null });
+  }
+  // 3. Punto actual en vivo
+  const shares = state.shares.base + (state.shares.movements || []).reduce((t, m) => t + (m.type === 'add' ? m.qty : -m.qty), 0);
+  const curFund = fundPrice(view.totalUsd, market.eurUsd, shares).eur;
+  const curBtc = market.prices?.BTC?.eur || 0;
+  if (curFund > 0) ptsMap.set(new Date().toISOString().slice(0, 10), { t: Date.now(), fund: curFund, btc: curBtc || null });
+
+  const pts = [...ptsMap.values()].sort((a, b) => a.t - b.t);
+  if (pts.length < 2) return '<div class="label p-6">Se necesitan al menos 2 registros de participación para dibujar la comparativa.</div>';
+
+  const f0 = pts[0].fund;
+  const btcPts = pts.filter(p => p.btc > 0);
+  const b0 = btcPts[0]?.btc || null;
+
+  const normF = pts.map(p => ({ t: p.t, n: (p.fund / f0) * 100 }));
+  const normB = b0 ? btcPts.map(p => ({ t: p.t, n: (p.btc / b0) * 100 })) : [];
+  const allN = [...normF.map(p => p.n), ...normB.map(p => p.n)];
+
+  const W = 600, H = 210, P = 10;
+  const x0 = pts[0].t, x1 = pts.at(-1).t, y0 = Math.min(...allN), y1 = Math.max(...allN);
+  const X = t => P + (t - x0) / (x1 - x0 || 1) * (W - 2 * P);
+  const Y = v => H - P - (v - y0) / (y1 - y0 || 1) * (H - 2 * P);
+
+  const dF = normF.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.n).toFixed(1)}`).join('');
+  const dB = normB.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.n).toFixed(1)}`).join('');
+  const chgF = (pts.at(-1).fund / f0 - 1) * 100;
+  const chgB = b0 && btcPts.length > 1 ? (btcPts.at(-1).btc / b0 - 1) * 100 : null;
+  const day = t => new Date(t).toISOString().slice(0, 10);
+
+  return `<svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Participación vs Bitcoin">
+    <path d="${dF}" fill="none" stroke="#22c55e" stroke-width="2.2"/>
+    ${normB.length >= 2 ? `<path d="${dB}" fill="none" stroke="#f7931a" stroke-width="2"/>` : ''}
+    ${normF.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.n).toFixed(1)}" r="2.8" fill="#22c55e"/>`).join('')}
+  </svg>
+  <div class="num mt-1 flex flex-wrap justify-between gap-2 text-xs text-slate-400">
+    <span>${day(x0)}</span>
+    <span><i style="display:inline-block;width:.6rem;height:.2rem;background:#22c55e"></i> Partic. ${eur(pts.at(-1).fund)} (<b class="${cls(chgF)}">${pct(chgF, 1)}</b>)${chgB != null ? ` · <i style="display:inline-block;width:.6rem;height:.2rem;background:#f7931a"></i> BTC ${eur(btcPts.at(-1).btc)} (<b class="${cls(chgB)}">${pct(chgB, 1)}</b>)` : ''}</span>
+    <span>${day(x1)}</span>
+  </div>`;
+}
+
+function walletLabel(w) {
+  if (WALLETS.btc.includes(w)) return 'Wallets Bitcoin';
+  if (w.endsWith('890f')) return 'Metamask BNB';
+  if (w.endsWith('86f2')) return 'Metamask Ledger';
+  if (w.startsWith('TPR5')) return 'TronLink Ledger';
+  if (w.startsWith('cosmos1')) return 'Cosmos Ledger';
+  if (w === 'Phantom') return 'Phantom';
+  return w;
+}
+
+function poolStatusHtml(x) {
+  if (!x.range || !x.range.inRange || !x.valueUsd || x.tokens.length !== 2) return x.status;
+  const p0 = pct(x.tokens[0].valueUsd / x.valueUsd * 100, 0);
+  const p1 = pct(x.tokens[1].valueUsd / x.valueUsd * 100, 0);
+  return `${x.status} <span class="label">(${p0} ${x.tokens[0].symbol} / ${p1} ${x.tokens[1].symbol})</span>`;
+}
+
 const opts = (list, cur, all) => `<option value="">${all}</option>` + list.map(v => `<option ${v === cur ? 'selected' : ''}>${v}</option>`).join('');
 
 export function render(ctx) {
@@ -52,8 +126,13 @@ export function render(ctx) {
   ].join('');
 
   const pos = o => Object.entries(o).filter(([, v]) => v > 0).map(([label, value]) => ({ label, value }));
-  const wallets = pos(b.wallet).map(w => ({ ...w, label: short(w.label) }));
-  if (p(b.custody, 'exchange')) wallets.push({ label: 'Exchanges', value: p(b.custody, 'exchange') });
+  const walletTotals = {};
+  for (const [raw, val] of Object.entries(b.wallet)) {
+    const lbl = walletLabel(raw);
+    walletTotals[lbl] = (walletTotals[lbl] || 0) + val;
+  }
+  if (p(b.custody, 'exchange')) walletTotals['Exchanges'] = (walletTotals['Exchanges'] || 0) + p(b.custody, 'exchange');
+  const wallets = pos(walletTotals);
 
   const full = history.filter(h => !h.partial);
   const keys = [...new Set(full.flatMap(h => Object.keys(h.pos || {})))];
@@ -71,14 +150,17 @@ export function render(ctx) {
         ${chart(series(history))}</div>
       <div class="card"><h2 class="mb-3 font-semibold">Activos</h2>${treemap(view.holdings.map(h => ({ label: h.symbol, value: h.usd })), 280, market.eurUsd)}</div>
     </div>
-    <div class="card space-y-4"><h2 class="font-semibold">Distribución</h2>${bars}</div>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="card space-y-4"><h2 class="font-semibold">Distribución</h2>${bars}</div>
+      <div class="card"><h2 class="mb-1 font-semibold">Participación vs Bitcoin (EUR, base 100)</h2><p class="label mb-3">Evolución relativa desde el primer registro manual y snapshots diarios.</p>${fundVsBtcChart(ctx)}</div>
+    </div>
     <div class="grid gap-4 lg:grid-cols-2">
       <div class="card"><h2 class="mb-3 font-semibold">Total por red</h2>${donut(pos(b.network))}</div>
       <div class="card"><h2 class="mb-3 font-semibold">Total por wallet</h2>${donut(wallets)}</div>
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
       <div class="card scroll-x"><h2 class="mb-2 font-semibold">Pools de liquidez</h2><table class="tbl"><thead><tr><th>Par</th><th>Estado</th><th class="r">Valor</th></tr></thead><tbody>
-        ${pools.map(x => `<tr><td>${x.pair}<div class="label">${x.protocol}</div></td><td style="color:${x.color}">${x.status}</td><td class="num r">${usd(x.valueUsd)}</td></tr>`).join('') || '<tr><td colspan="3" class="label">Sin posiciones</td></tr>'}</tbody></table></div>
+        ${pools.map(x => `<tr><td>${x.pair}<div class="label">${x.protocol}</div></td><td style="color:${x.color}">${poolStatusHtml(x)}</td><td class="num r">${usd(x.valueUsd)}</td></tr>`).join('') || '<tr><td colspan="3" class="label">Sin posiciones</td></tr>'}</tbody></table></div>
       <div class="card scroll-x"><h2 class="mb-2 font-semibold">Staking</h2><table class="tbl"><thead><tr><th>Token</th><th class="r">Valor</th><th class="r">APR</th></tr></thead><tbody>
         ${st.rows.map(x => `<tr><td>${x.sym}</td><td class="num r">${usd(x.value)}</td><td class="num r">${pct(x.apr, 2)}</td></tr>`).join('')}
         <tr><td class="label">Total / media ponderada</td><td class="num r">${usd(st.tvl)}</td><td class="num r">${pct(st.wApr, 2)}</td></tr></tbody></table></div>
