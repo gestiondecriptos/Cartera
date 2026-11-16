@@ -22,19 +22,20 @@ export const CEX_ASSETS = ['BTC', 'ETH', 'BNB', 'USDC', 'USDT', 'EUR', 'NEXO', '
 
 // Tokens envueltos que se suman a su activo real en el total global
 export const UNDERLYING = {
-  WETH: 'ETH', WBNB: 'BNB', BTCB: 'BTC', WBTC: 'BTC',
-  sPENDLE: 'PENDLE', SPENDLE: 'PENDLE',                       // sPENDLE = PENDLE en staking, 1:1
-  USDCn: 'USDC', USDCN: 'USDC', USDbC: 'USDC', USDBC: 'USDC', 'USDC.e': 'USDC', // variantes de USDC
+  WETH: 'ETH', WBNB: 'BNB', BTCB: 'BTC', WBTC: 'BTC', cbBTC: 'BTC', CBBTC: 'BTC',
+  sPENDLE: 'PENDLE', SPENDLE: 'PENDLE',
+  USDCn: 'USDC', USDCN: 'USDC', USDbC: 'USDC', USDBC: 'USDC', 'USDC.e': 'USDC',
+  USDT0: 'USDT', usdt0: 'USDT',
 };
 
 // Tokens de staking líquido que se muestran como su activo base (cantidad equivalente = valor ÷ precio del activo base)
-export const LIQUID_STAKING = { PSOL: 'SOL' };
+export const LIQUID_STAKING = { PSOL: 'SOL', wstETH: 'ETH', WSTETH: 'ETH' };
 
 // Pools que NO forman parte de la cartera (por nombre exacto del par en TrackDeFi)
 export const IGNORE_POOLS = ['8LNDS/USDC'];
 
 // Tokens de recibo de staking que se cuentan en la categoría «staking»
-export const STAKING_SYMBOLS = ['SPENDLE'];
+export const STAKING_SYMBOLS = ['SPENDLE', 'WSTETH'];
 
 // Símbolo -> id de CoinGecko (comprobar si alguno deja de devolver precio)
 export const COINGECKO_IDS = {
@@ -42,7 +43,8 @@ export const COINGECKO_IDS = {
   SKY: 'sky', AAVE: 'aave', NEXO: 'nexo', OKB: 'okb', TRX: 'tron', HYPE: 'hyperliquid',
   ATOM: 'cosmos', USDC: 'usd-coin', USDT: 'tether', SYRUP: 'syrup', PENDLE: 'pendle',
   CAKE: 'pancakeswap-token', WBTC: 'wrapped-bitcoin', BTCB: 'binance-bitcoin',
-  PSOL: 'phantom-staked-sol', ARB: 'arbitrum',
+  cbBTC: 'coinbase-wrapped-btc', wstETH: 'wrapped-steth', XAUT: 'tether-gold',
+  EURC: 'euro-coin', PSOL: 'phantom-staked-sol', ARB: 'arbitrum',
 };
 
 // Posiciones de pools de liquidez (Uniswap, PancakeSwap, Aerodrome…) de cada dirección EVM
@@ -59,7 +61,7 @@ export const CHAINS = {
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
   // BSC (sin clave): RPC público de PublicNode + tokens BEP-20 a reconocer (todos con 18 decimales)
-  bsc: {
+ bsc: {
     rpc: 'https://bsc-rpc.publicnode.com', native: 'BNB',
     tokens: {
       '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c': 'BTCB',
@@ -68,7 +70,12 @@ export const CHAINS = {
       '0x2170Ed0880ac9A755fd29B2688956BD959F933F8': 'ETH',
       '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82': 'CAKE',
       '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c': 'WBNB',
-      '0x56a7ddc4e848EbF43845854205ad71D5D5F72d3D': 'aBnbBTCB',   // BTCB depositado como colateral en Aave v3 (BSC)
+      '0x56a7ddc4e848EbF43845854205ad71D5D5F72d3D': 'aBnbBTCB',
+      '0x9b00a09492a626678e5a3009982191586c444df9': 'aBnbWBNB',
+      '0xa9251ca9de909cb71783723713b21e4233fbf1b1': 'aBnbUSDT',
+      '0xf8bb2be50647447fb355e3a77b81be4db64107cd': 'variableDebtBnbUSDT',
+      '0x0e76414d433ddfe8004d2a7505d218874875a996': 'variableDebtBnbWBNB',
+      '0x7b1e82f4f542fbb25d64c5523fe3e44abe4f2702': 'variableDebtBnbBTCB',
     },
   },
   tronApi: 'https://api.trongrid.io',
