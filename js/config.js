@@ -12,7 +12,6 @@ export const WALLETS = {
     { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger' },
     { address: '0x34bC9ceBA589CDBD67bC26932a334cC6c263890f', custody: 'metamask' },
   ],
-  solana: ['4gaSGp9FuujptfscRtEcD63xgi2XWQ7dbhBuPLzFzR12'],
   tron: ['TPR5czP8415hYSBoc8bQ1zYctXLbcfBX31'],
   cosmos: ['cosmos1h2zm4974mmg74839p3syukpz4cxl00v030g6mw'],
 };
@@ -43,7 +42,7 @@ export const COINGECKO_IDS = {
   SKY: 'sky', AAVE: 'aave', NEXO: 'nexo', OKB: 'okb', TRX: 'tron', HYPE: 'hyperliquid',
   ATOM: 'cosmos', USDC: 'usd-coin', USDT: 'tether', SYRUP: 'syrup', PENDLE: 'pendle',
   CAKE: 'pancakeswap-token', WBTC: 'wrapped-bitcoin', BTCB: 'binance-bitcoin',
-  JITOSOL: 'jito-staked-sol', MSOL: 'msol', JUP: 'jupiter-exchange-solana', PSOL: 'phantom-staked-sol', ARB: 'arbitrum',
+  PSOL: 'phantom-staked-sol', ARB: 'arbitrum',
 };
 
 // Posiciones de pools de liquidez (Uniswap, PancakeSwap, Aerodrome…) de cada dirección EVM
@@ -59,17 +58,6 @@ export const CHAINS = {
     { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
-  // se prueban en orden hasta que uno responda
-  solanaRpc: ['https://solana-rpc.publicnode.com', 'https://api.mainnet-beta.solana.com', 'https://solana.drpc.org'],
-  // mint de cada token SPL que quieres reconocer (los demás se ignoran)
-  solanaMints: {
-    EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: { symbol: 'USDC' },
-    Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: { symbol: 'USDT' },
-    pSo1f9nQXWgXibFtKf7NWYxb5enAM4qfP6UJSiXRQfL: { symbol: 'PSOL', category: 'staking' },      // SOL en staking con Phantom
-    J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn: { symbol: 'JITOSOL', category: 'staking' },
-    mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So: { symbol: 'MSOL', category: 'staking' },
-    JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN: { symbol: 'JUP' },
-  },
   // BSC (sin clave): RPC público de PublicNode + tokens BEP-20 a reconocer (todos con 18 decimales)
   bsc: {
     rpc: 'https://bsc-rpc.publicnode.com', native: 'BNB',
@@ -94,17 +82,15 @@ export const CHAINS = {
 export const APR_SOURCES = {
   SKY: [{ project: 'sky-lending', symbol: 'SKY', chain: 'Ethereum' }, { project: 'sky', symbol: 'SKY', chain: 'Ethereum' }],
   HYPE: [{ project: 'kinetiq', chain: 'Hyperliquid L1', approx: true }],
-  SOL: [{ project: 'phantom', chain: 'Solana' }, { project: 'jito', chain: 'Solana', approx: true }],
   ATOM: [{ project: 'stride', symbol: 'ATOM', approx: true }],
   PENDLE: [{ project: 'pendle', symbol: 'SPENDLE' }],
 };
 
 // APR por defecto (%) cuando DefiLlama no da uno para ese token. Puedes cambiarlos aquí.
-export const STAKING_APR_DEFAULT = { SKY: 4.7, TRX: 3.3, HYPE: 2.2, ATOM: 14, PENDLE: 1.5, SOL: 5.5, PSOL: 5.5, JITOSOL: 5.5, MSOL: 5.5 };
+export const STAKING_APR_DEFAULT = { SKY: 4.7, TRX: 3.3, HYPE: 2.2, ATOM: 14, PENDLE: 1.5, SOL: 5.5 };
 
 // Claves de API (opcionales): pégalas entre las comillas.
 // ATENCIÓN: este archivo es público en GitHub, así que cualquiera podría ver y usar tus claves. Usa planes gratuitos y, si las ves usadas por otros, genera claves nuevas.
 export const API_KEYS = {
-  HELIUS_API_KEY: '',   // Solana (https://dashboard.helius.dev)
   MORALIS_API_KEY: '',  // EVM: Base, Ethereum y Arbitrum (https://admin.moralis.com)
 };
