@@ -90,7 +90,7 @@ function renderInicio(view, fund, shares) {
 
   const s = market.sources;
   const badge = $('#data-badge');
-  const NAMES = { prices: 'precios', btc: 'BTC', pools: 'Pools', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', solana: 'Solana', tron: 'Tron', cosmos: 'Cosmos' };
+  const NAMES = { prices: 'precios', btc: 'BTC', pools: 'Pools', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', tron: 'Tron', cosmos: 'Cosmos' };
   const bad = Object.entries(s).filter(([, v]) => v !== 'live').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : v === 'file' ? 'desde archivo' : v === 'none' ? 'sin datos' : 'simulado'}`);
   badge.className = `badge ${bad.length ? 'mock' : 'live'}`;
   badge.textContent = bad.length ? `Datos no reales: ${bad.join(', ')}` : 'Datos reales';
@@ -129,10 +129,11 @@ function renderManual(state, view, fund, shares) {
   <div class="grid gap-4 lg:grid-cols-2">
     <div class="card"><h2 class="mb-2 font-semibold">Fondos en exchanges</h2><table class="tbl"><tbody>
       ${CEX_ASSETS.map(a => row(a, qty(state.cex[a] || 0))).join('')}</tbody></table></div>
-    <div class="card"><h2 class="mb-2 font-semibold">Dual Investment (BSC), SKY en staking y DCA</h2><table class="tbl"><tbody>
+    <div class="card"><h2 class="mb-2 font-semibold">Dual Investment (BSC), staking manual y DCA</h2><table class="tbl"><tbody>
       ${DUAL_ASSETS.map(a => row('Dual ' + a, qty(state.dual.find(p => p.asset === a)?.amount || 0))).join('')}
       ${row('Deuda USDT (Dual)', usd(state.dualDebt))}
       ${row('SKY en staking', qty(state.stakingManual.SKY || 0))}
+      ${row('PSOL en staking (Phantom)', qty(state.stakingManual.PSOL || 0))}
       ${row('DCA: filas / última', last ? `${state.dca.length} · ${last.month} · deuda ${usd(last.debt)}` : 'sin datos')}</tbody></table></div>
   </div>
 
