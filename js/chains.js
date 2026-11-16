@@ -56,14 +56,23 @@ export const fetchEvm = () => eachUnit(
     const mKey = getKey('MORALIS_API_KEY');
     // Blockscout (sin clave) y, si hay clave de Moralis, Moralis: se prueba el preferido y el otro queda de respaldo
     const viaBlockscout = async () => {
-      const [acc, toks] = await Promise.all([
-        orNull(get(`${net.api}/api/v2/addresses/${w.address}`)),
-        orNull(get(`${net.api}/api/v2/addresses/${w.address}/token-balances`)),
-      ]);
+      const acc = await orNull(get(`${net.api}/api/v2/addresses/${w.address}`));
       const list = [[net.native, Number(acc?.coin_balance || 0) / 1e18]];
-      for (const t of toks || []) {
-        const tk = t.token || {};
-        if ((!tk.type || tk.type === 'ERC-20') && tk.symbol) list.push([tk.symbol, Number(t.value) / 10 ** Number(tk.decimals ?? 18)]);
+      const add = items => { for (const t of items || []) { const tk = t.token || {}; if ((!tk.type || tk.type === 'ERC-20') && tk.symbol) list.push([tk.symbol, Number(t.value) / 10 ** Number(tk.decimals ?? 18)]); } };
+      try {
+        // Solo tokens ERC-20 (sin NFTs, que son lo que suele agotar el tiempo), paginado
+        let extra = '', pages = 0;
+        do {
+          const j = await orNull(get(`${net.api}/api/v2/addresses/${w.address}/tokens?type=ERC-20${extra}`));
+          add(j?.items);
+          const np = j?.next_page_params;
+          extra = np ? '&' + Object.entries(np).filter(([, v]) => v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&') : '';
+          pages++;
+        } while (extra && pages < 6);
+      } catch (e) {
+        if (!/^(400|404|422)$/.test(e.message)) throw e;          // si esa ruta no existe en la instancia, se usa la antigua
+        list.length = 1;
+        add(await orNull(get(`${net.api}/api/v2/addresses/${w.address}/token-balances`)));
       }
       return list;
     };
@@ -95,7 +104,7 @@ export const fetchEvm = () => eachUnit(
 /* ---- BSC: BNB y tokens BEP-20 de config.js (RPC público, sin clave) ---- */
 const bscCall = (method, params) => post(CHAINS.bsc.rpc, { jsonrpc: '2.0', id: 1, method, params })
   .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
-const hexToNum = (hex, dec) => Number(BigInt(hex || '0x0')) / 10 ** dec;
+const hexToNum = (hex, dec) => Number(BigInt(hex && hex !== '0x' ? hex : '0x0')) / 10 ** dec;
 export const fetchBsc = () => eachUnit(
   WALLETS.evm.map(w => ({ w, label: `BSC ${short(w.address)}` })),
   async ({ w }, out) => {

@@ -1,4 +1,4 @@
-import { usd, qty, pct, cls, donut, COLORS } from '../format.js';
+import { usd, qty, pct, cls, esc, donut, COLORS } from '../format.js';
 import { normalizeSymbol, poolPerformance } from '../accounting.js';
 
 let sel = 0, last = null;
@@ -40,15 +40,15 @@ export function render(ctx) {
       <input id="pool-filter" class="inp mb-3 max-w-xs" placeholder="Filtrar por par o protocolo">
       ${positions.length ? `<table class="tbl"><thead><tr><th>Par / Protocolo</th><th>Estado</th><th>Composición</th><th class="r">Valor</th><th class="r">Comisiones pendientes</th><th class="r">IL</th><th class="r">Tiempo</th><th class="r">ROI neto</th></tr></thead>
       <tbody>${positions.map((p, i) => `<tr data-i="${i}" data-q="${(p.pair + p.protocol + p.network).toLowerCase()}" class="cursor-pointer ${i === sel ? 'bg-[#11131f]' : ''}">
-        <td><div class="font-medium">${p.pair}</div><div class="label">${p.protocol} · ${p.network}${p.staked ? ' · staked' : ''}</div></td>
+        <td><div class="font-medium">${p.pair}</div><div class="label">${p.protocol} · ${p.network}${p.staked ? ' · staked' : ''}</div><div class="label">id <span class="num">${p.id}</span></div></td>
         <td><span style="color:${p.color}">${p.status}</span></td>
         <td class="num">${p.tokens.map(t => `${qty(t.amount)} ${t.symbol} (${pct(p.valueUsd ? t.valueUsd / p.valueUsd * 100 : 0)})`).join('<br>')}</td>
         <td class="num r">${usd(p.valueUsd)}</td>
         <td class="num r">${usd(p.rewardsUsd)}</td>
         ${(perf => perf ? `<td class="num r ${cls(perf.ilUsd ?? 0)}">${perf.ilUsd == null ? '—' : usd(perf.ilUsd) + '<br>' + pct(perf.ilPct, 2)}</td><td class="num r">${Math.round(perf.days)} d</td><td class="num r ${cls(perf.roiUsd)}">${usd(perf.roiUsd)}<br>${pct(perf.roiPct, 2)} · ${pct(perf.annualPct, 1)} anual</td>` : '<td class="num r label">—</td><td class="num r label">—</td><td class="num r label">—</td>')(poolPerformance(p, ctx.state?.poolEntries?.[p.id]))}</tr>`).join('')}</tbody></table>`
         : '<p class="label">No hay posiciones.</p>'}
-      <p class="label mt-3">Fuente: TrackDeFi. IL, tiempo y ROI se calculan con la entrada que registres en «Datos manuales → Entradas de pools» (ROI = valor + comisiones pendientes − invertido; IL = valor actual − valor de mantener los tokens iniciales). Pulsa una fila para ver su rango.</p>
-      ${warnings?.length ? `<p class="label mt-2">Avisos de TrackDeFi (puede faltar alguna posición): ${warnings.slice(0, 3).join(' · ')}${warnings.length > 3 ? ` (+${warnings.length - 3} más)` : ''}</p>` : ''}
+      <p class="label mt-3">Fuente: TrackDeFi. IL, tiempo y ROI se calculan con la entrada que pongas en data/manual.js (sección poolEntries, con el id que ves bajo cada pool; la pestaña «Datos manuales» te da las líneas listas para copiar) (ROI = valor + comisiones pendientes − invertido; IL = valor actual − valor de mantener los tokens iniciales). Pulsa una fila para ver su rango.</p>
+      ${warnings?.length ? `<details class="label mt-2"><summary class="cursor-pointer">TrackDeFi no pudo consultar ${warnings.length} fuentes (por ejemplo pools Uniswap V2 en algunas redes). Si tienes posiciones ahí, podrían faltar.</summary><ul class="mt-1 list-disc pl-5">${warnings.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
       <div class="card"><h2 class="mb-4 font-semibold">Rango${s ? ` de ${s.pair}` : ''}</h2>

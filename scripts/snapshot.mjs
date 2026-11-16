@@ -1,21 +1,20 @@
 // Snapshot del patrimonio -> data/history.json. Lo ejecuta GitHub Actions (Node 20), sin navegador.
 import fs from 'node:fs';
-import { WALLETS, INITIAL_SHARES } from '../js/config.js';
+import { WALLETS } from '../js/config.js';
+import * as store from '../js/store.js';
 import { loadMarketData } from '../js/data.js';
 import { aggregateHoldings, fundPrice } from '../js/accounting.js';
 
 const file = p => new URL(`../${p}`, import.meta.url);
 const readJson = (p, fallback) => { try { return JSON.parse(fs.readFileSync(file(p), 'utf8')); } catch { return fallback; } };
 
-const extra = readJson('data/wallets.json', {}).btc || [];
-const manual = readJson('data/manual.json', {});
-const state = {
-  dual: manual.dual || [], cex: manual.cex || {}, dca: manual.dca || [], stakingManual: manual.stakingManual || {}, dualDebt: manual.dualDebt || 0,
-  shares: manual.shares || { base: INITIAL_SHARES, movements: [] },
-};
-const shares = state.shares.base + (state.shares.movements || []).reduce((t, m) => t + (m.type === 'add' ? m.qty : -m.qty), 0);
+// Datos manuales: data/manual.js (el mismo archivo que lee la web). Si tiene un error, el snapshot se detiene para no guardar datos incorrectos.
+const manualRes = await store.load();
+if (manualRes.error) { console.error('Error en data/manual.js:', manualRes.error); process.exit(1); }
+const state = store.getState();
+const shares = store.totalShares();
 
-const market = await loadMarketData([...new Set([...WALLETS.btc, ...extra])]);
+const market = await loadMarketData(WALLETS.btc);
 // Los pools leídos se guardan para que la web los muestre si el navegador no puede consultar TrackDeFi
 if (market.pools.source === 'live') fs.writeFileSync(file('data/pools.json'), JSON.stringify({ fetchedAt: market.pools.fetchedAt, results: market.pools.raws }) + '\n');
 const s = market.sources;

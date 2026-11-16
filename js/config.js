@@ -80,6 +80,7 @@ export const CHAINS = {
       '0x2170Ed0880ac9A755fd29B2688956BD959F933F8': 'ETH',
       '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82': 'CAKE',
       '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c': 'WBNB',
+      '0x56a7ddc4e848EbF43845854205ad71D5D5F72d3D': 'aBnbBTCB',   // BTCB depositado como colateral en Aave v3 (BSC)
     },
   },
   tronApi: 'https://api.trongrid.io',
@@ -98,9 +99,12 @@ export const APR_SOURCES = {
   PENDLE: [{ project: 'pendle', symbol: 'SPENDLE' }],
 };
 
+// APR por defecto (%) cuando DefiLlama no da uno para ese token. Puedes cambiarlos aquí.
+export const STAKING_APR_DEFAULT = { SKY: 4.7, TRX: 3.3, HYPE: 2.2, ATOM: 14, PENDLE: 1.5, SOL: 5.5, PSOL: 5.5, JITOSOL: 5.5, MSOL: 5.5 };
+
 // Claves de API (opcionales): pégalas entre las comillas.
 // ATENCIÓN: este archivo es público en GitHub, así que cualquiera podría ver y usar tus claves. Usa planes gratuitos y, si las ves usadas por otros, genera claves nuevas.
 export const API_KEYS = {
-  HELIUS_API_KEY: '0b694547-bd4c-4300-a17a-bbe47c4fb772',   // Solana (https://dashboard.helius.dev)
+  HELIUS_API_KEY: '',   // Solana (https://dashboard.helius.dev)
   MORALIS_API_KEY: '',  // EVM: Base, Ethereum y Arbitrum (https://admin.moralis.com)
 };

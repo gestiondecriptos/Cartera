@@ -1,10 +1,10 @@
 import { usd, qty, pct } from '../format.js';
-import { MOCK_STAKING_APR } from '../mock-data.js';
+import { STAKING_APR_DEFAULT } from '../config.js';
 
 const TOKENS = ['SKY', 'TRX', 'HYPE', 'ATOM', 'PENDLE', 'SOL'];
 
-// APR: DefiLlama si hay pool; si no, valor de ejemplo
-const aprFor = (sym, live) => live?.[sym] ? { apr: live[sym].apr, src: live[sym].label } : { apr: MOCK_STAKING_APR[sym] ?? 0, src: 'ejemplo' };
+// APR: DefiLlama si hay pool; si no, el valor por defecto de js/config.js
+const aprFor = (sym, live) => live?.[sym] ? { apr: live[sym].apr, src: live[sym].label } : { apr: STAKING_APR_DEFAULT[sym] ?? 0, src: 'por defecto' };
 
 export function stakingData({ view, market, aprLive }) {
   // los 5 tokens fijos + cualquier otro activo que tengas marcado como staking (PSOL, JitoSOL…)
@@ -35,5 +35,5 @@ export function render(ctx) {
       <thead><tr><th>Token</th><th class="r">Cantidad</th><th class="r">Valor (USD)</th><th class="r">APR</th><th class="r">Generación diaria (USD)</th></tr></thead>
       <tbody>${rows.map(r => `<tr><td class="font-medium">${r.sym}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${usd(r.value)}</td><td class="num r">${pct(r.apr, 2)} <span class="label">(${r.src})</span></td><td class="num r">${usd(r.daily)}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, de ejemplo.</p></div>`;
+    <p class="label mt-3">Las cantidades salen de tus saldos marcados como staking (el SKY, de «Datos manuales»). APR: de DefiLlama cuando hay un pool equivalente («aprox.» = pool parecido usado como referencia); si no, el valor por defecto (4,7% SKY · 3,3% TRX · 2,2% HYPE · 14% ATOM · 1,5% PENDLE · 5,5% SOL; se cambian en js/config.js).</p></div>`;
 }
