@@ -9,7 +9,10 @@ export function normalizeManual(m = {}) {
     cex: Object.fromEntries(CEX_ASSETS.map(a => [a, Math.max(0, num(m.cex?.[a]))])),
     dual: DUAL_ASSETS.filter(a => num(m.dual?.[a]) > 0).map(a => ({ asset: a, amount: num(m.dual[a]), network: 'BSC' })),
     dualDebt: Math.max(0, num(m.dualDebtUSDT)),
-    stakingManual: num(m.skyStaking) > 0 ? { SKY: num(m.skyStaking) } : {},
+    stakingManual: {
+      ...(num(m.skyStaking) > 0 ? { SKY: num(m.skyStaking) } : {}),
+      ...(num(m.psolStaking) > 0 ? { PSOL: num(m.psolStaking) } : {}),
+    },
     shares: {
       base: m.shares?.base != null ? num(m.shares.base) : INITIAL_SHARES,
       movements: (m.shares?.movements || []).map(x => ({ date: String(x.date || ''), type: x.type === 'sub' ? 'sub' : 'add', qty: num(x.qty), price: num(x.price) })),
