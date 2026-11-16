@@ -38,7 +38,7 @@ export function render({ view, state, market, ledger = [] }) {
     <div class="grid gap-4 lg:grid-cols-3">
       <div class="card scroll-x lg:col-span-2"><h2 class="mb-2 font-semibold">BTC Ledger anónimo</h2>
         <table class="tbl"><thead><tr><th>Wallet</th><th>Fecha</th><th class="r">Cantidad</th><th class="r">Precio a fecha</th><th class="r">Variación</th></tr></thead><tbody>${ledgerRows}</tbody></table>
-        <p class="label mt-3">${L.length ? '' : 'Cargando compras (o aún no hay ingresos). '}Cada ingreso confirmado en tus direcciones cuenta como una compra, al precio de BTC de ese momento (mempool.space). Los traspasos entre tus propias direcciones también aparecerían así.</p></div>
+        <p class="label mt-3">${L.length ? '' : 'Cargando compras (o aún no hay ingresos). '}Cada ingreso confirmado en tus direcciones cuenta como una compra, al precio de BTC de ese momento (mempool.space).</p></div>
       <div class="card flex flex-col items-center justify-center gap-2">
         <div class="label">Precio medio de compra</div>
         <div class="flex h-44 w-44 flex-col items-center justify-center rounded-full border-[10px] border-[#f7931a]">
