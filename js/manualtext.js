@@ -23,8 +23,9 @@ export const MANUAL = {
   dual: { ${dual} },
   dualDebtUSDT: ${n(m.dualDebt)},
 
-  // 3) SKY en staking (cantidad)
+  // 3) Staking manual (cantidades): SKY y PSOL de Phantom
   skyStaking: ${n(m.stakingManual?.SKY)},
+  psolStaking: ${n(m.stakingManual?.PSOL)},
 
   // 4) Participaciones del fondo: base inicial y una línea por cada ampliación (add) o reducción (sub)
   shares: {
