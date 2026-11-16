@@ -44,7 +44,10 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     ...(state.dualDebt > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebt, network: 'BSC', custody: 'exchange' }] : []),
     // Estrategia DCA: solo la «Deuda acumulada» de la ÚLTIMA fila (el BTC colateral ya se lee de aBnbBTCB en BSC)
     ...(state.dca?.at(-1)?.debt > 0 ? [{ symbol: 'variableDebtUSDC', amount: state.dca.at(-1).debt, network: 'DCA colateral', custody: 'exchange' }] : []),
-    ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({ symbol, amount, network: 'Ethereum', custody: 'ledger', category: 'staking' })),
+    ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({
+      symbol, amount, network: symbol === 'PSOL' ? 'Solana' : 'Ethereum',
+      custody: symbol === 'PSOL' ? 'phantom' : 'ledger', category: 'staking',
+    })),
   ];
   const map = new Map();
   const by = { category: {}, custody: {}, network: {}, wallet: {} };
