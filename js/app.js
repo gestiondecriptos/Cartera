@@ -218,6 +218,7 @@ $('#manual-root').addEventListener('click', async e => {
 showTab(location.hash.slice(1) || 'inicio');
 loadHistory().then(h => { historyData = h; refresh(); });
 loadBtcEurHistory().then(m => { btcEurHist = m; refresh(); });
-loadMarketData(WALLETS.btc, m => { market = m; refresh(); }).then(m => { market = m; refresh(); });
+const manualP = store.load();
+loadMarketData(WALLETS.btc, m => { market = m; refresh(); }, manualP).then(m => { market = m; refresh(); });
 loadBtcLedger(WALLETS.btc, list => { ledger = list; refresh(); });
-store.load().then(() => { manualReady = true; refresh(); });
+manualP.then(() => { manualReady = true; refresh(); });
