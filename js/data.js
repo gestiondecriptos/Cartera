@@ -210,4 +210,3 @@ export async function btcFixedPricesText(dates) {
   const lines = ds.map(d => { const p = near(d); return p ? `  '${d}': ${+p.toFixed(2)},` : `  // '${d}': sin dato (Bitview no tiene ese día)`; });
   return `// Precio de BTC en USD (cierre diario) de las fechas de tus movimientos de participaciones. Valores fijos: no cambian con el tiempo.\n// Se genera con el botón «Generar precios BTC fijos» de la pestaña Datos manuales.\nexport const BTC_USD_FIXED = {\n${lines.join('\n')}\n};\n`;
 }
-}
