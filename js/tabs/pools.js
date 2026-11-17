@@ -25,7 +25,7 @@ export function render(ctx) {
 
   const fileNote = source === 'file' ? `Datos guardados por el workflow${fetchedAt ? ` (${fetchedAt.slice(0, 16).replace('T', ' ')} UTC)` : ''}: el navegador no pudo consultar TrackDeFi directamente.` : '';
     const errNote = ctx.market.pools.errs?.length ? `Motivo: ${[...new Set(ctx.market.pools.errs)].join(' · ')}` : '';
-  const notes = [SRC[source], fileNote, source === 'none' ? errNote : ''].filter(Boolean);
+  const notes = [SRC[source], fileNote, errNote].filter(Boolean);
 
   // exposición por activo (WBNB cuenta como BNB, etc.)
   const expo = {};
