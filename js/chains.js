@@ -51,7 +51,7 @@ const push = (out, base, symbol, amount, category) => {
 
 /* ---- EVM: redes de CHAINS.evm en config.js (Blockscout) ---- */
 export const fetchEvm = () => eachUnit(
-  WALLETS.evm.flatMap(w => CHAINS.evm.map(net => ({ w, net, label: `${net.name} ${short(w.address)}` }))),
+  WALLETS.evm.flatMap(w => CHAINS.evm.filter(net => !w.nets || w.nets.includes(net.name)).map(net => ({ w, net, label: `${net.name} ${short(w.address)}` }))),
   async ({ w, net }, out) => {
     const mKey = getKey('MORALIS_API_KEY');
     // Blockscout (sin clave) y, si hay clave de Moralis, Moralis: se prueba el preferido y el otro queda de respaldo
@@ -106,7 +106,7 @@ const bscCall = (method, params) => post(CHAINS.bsc.rpc, { jsonrpc: '2.0', id: 1
   .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
 const hexToNum = (hex, dec) => Number(BigInt(hex && hex !== '0x' ? hex : '0x0')) / 10 ** dec;
 export const fetchBsc = () => eachUnit(
-  WALLETS.evm.map(w => ({ w, label: `BSC ${short(w.address)}` })),
+    WALLETS.evm.filter(w => !w.nets || w.nets.includes('BSC')).map(w => ({ w, label: `BSC ${short(w.address)}` })),
   async ({ w }, out) => {
     const base = { network: 'BSC', wallet: short(w.address), custody: w.custody };
     const data = '0x70a08231' + w.address.slice(2).toLowerCase().padStart(64, '0');        // balanceOf(address)
@@ -120,7 +120,7 @@ export const fetchBsc = () => eachUnit(
 
 /* ---- Hyperliquid: spot, margen de perpetuos y HYPE en staking ---- */
 export const fetchHyperliquid = () => eachUnit(
-  WALLETS.evm.map(w => ({ w, label: `Hyperliquid ${short(w.address)}` })),
+    WALLETS.evm.filter(w => w.hyperliquid).map(w => ({ w, label: `Hyperliquid ${short(w.address)}` })),
   async ({ w }, out) => {
     const call = type => post(CHAINS.hyperliquid, { type, user: w.address });
     const [spot, perp, deleg] = await Promise.all([call('spotClearinghouseState'), call('clearinghouseState'), call('delegatorSummary')]);
