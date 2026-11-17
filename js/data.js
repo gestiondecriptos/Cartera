@@ -28,31 +28,44 @@ async function fetchPrices() {
 /** Saldos on-chain. Una dirección que falla no tumba a las demás; si fallan todas, se usan datos simulados. */
 async function fetchBtcOnchain(addresses) {
   const out = [], failed = [];
-  for (const address of addresses) {
+    await Promise.all(addresses.map(async address => {
     try {
       const j = await get(`${API}/address/${address}`);
       const c = j.chain_stats, m = j.mempool_stats;
       const sats = c.funded_txo_sum - c.spent_txo_sum + m.funded_txo_sum - m.spent_txo_sum;
       out.push({ symbol: 'BTC', amount: sats / 1e8, network: 'Bitcoin', wallet: address, custody: 'ledger' });
     } catch (e) { console.warn('BTC on-chain: no se pudo leer', address, e.message); failed.push(address); }
-  }
+  }));
   if (!out.length) return { balances: [], source: 'none', failed };   // sin datos inventados: el total no los incluye y la etiqueta lo avisa
   return { balances: out, source: 'live', failed };
 }
 
-export async function loadMarketData(btcAddresses = WALLETS.btc) {
-  const [p, btc, chains, pools] = await Promise.all([fetchPrices(), fetchBtcOnchain(btcAddresses), loadChains(), fetchPools()]);
-  const others = Object.values(chains.items).flat();
-  return {
-    prices: p.prices,
-    eurUsd: p.eurUsd,
-    onchain: [...btc.balances, ...others, ...poolItems(pools.positions)],
-    pools,
-    btcFailed: btc.failed,
-    chainFailed: chains.failed,
-    ignored: chains.ignored,
-    sources: { prices: p.source, btc: btc.source, ...chains.sources, pools: pools.source },
+export async function loadMarketData(btcAddresses = WALLETS.btc, onUpdate) {
+  const part = { btc: null, chains: null, pools: null };
+  let p = null;
+  const CH = ['evm', 'bsc', 'hyperliquid', 'tron', 'cosmos'];
+  const build = () => {
+    const c = part.chains || { items: {}, sources: {}, failed: [], ignored: [] };
+    const pl = part.pools || { positions: [], source: 'loading', raws: [], failed: [], fetchedAt: null, warnings: [] };
+    return {
+      prices: p.prices,
+      eurUsd: p.eurUsd,
+      onchain: [...(part.btc?.balances || []), ...Object.values(c.items).flat(), ...poolItems(pl.positions)],
+      pools: pl,
+      btcFailed: part.btc?.failed || [],
+      chainFailed: c.failed,
+      ignored: c.ignored,
+      sources: { prices: p.source, btc: part.btc?.source ?? 'loading', ...Object.fromEntries(CH.map(k => [k, c.sources[k] ?? 'loading'])), pools: pl.source },
+    };
   };
+  const push = () => { if (p && onUpdate) onUpdate(build()); };
+  await Promise.all([
+    fetchPrices().then(r => { p = r; push(); }),
+    fetchBtcOnchain(btcAddresses).then(r => { part.btc = r; push(); }),
+    loadChains(c => { part.chains = c; push(); }).then(c => { part.chains = c; }),
+    fetchPools().then(r => { part.pools = r; push(); }),
+  ]);
+  return build();
 }
 
 /* ---------- Ledger automático: compras leídas de las transacciones de cada dirección ---------- */
