@@ -65,7 +65,6 @@ export const CHAINS = {
         '0x643C4E15d7d62Ad0aBeC4a9BD4b001aA3Ef52d66': ['SYRUP', 18],
         '0x44D280a4cf39CE417A7c2b36695F95C6D80E5A57': ['USDC', 6],
         '0xdAC17F958D2ee523a2206206994597C13D831ec7': ['USDT', 6],
-        '0x20Ff75a0d03194aE035905a859c84BA89b106725': ['USDT', 6],
         '0x6df1C1E379bC5a00a7b4C6e67A203333772f45A8': ['variableDebtEthUSDT', 6],
       } },
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum', rpc: 'https://arbitrum-one-rpc.publicnode.com',
