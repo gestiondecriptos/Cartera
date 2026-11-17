@@ -142,25 +142,30 @@ export async function loadStakingApr() {
     return aprs;
   } catch (e) { console.warn('DefiLlama no disponible:', e.message); return {}; }
 }
-/** Histórico diario de precio BTC en EUR desde CoinGecko (caché 12 h) */
+/** Histórico diario de precio BTC en USD desde Bitview (desde 2010, caché 12 h) */
 export async function loadBtcEurHistory() {
- const KEY = 'cripto-dashboard:btc-eur-hist:v3';
+  const KEY = 'cripto-dashboard:btc-usd-hist:v1';
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return c.map;
   } catch { /* sin caché */ }
   try {
-    const j = await get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=1825');
+    const r = await fetch('https://bitview.space/api/series/price_close/day1?start=2015-01-01', { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error(String(r.status));
+    const j = await r.json();
+    const maxV = (j.data || []).reduce((m, x) => (x != null && +x > m ? +x : m), 0);
+    const cents = /cent/i.test(String(j.type || '')) || maxV > 5e6;
+    const t0 = Date.parse('2015-01-01');
     const map = {};
-    for (const [ts, price] of j.prices || []) {
-      if (price > 0) map[new Date(ts).toISOString().slice(0, 10)] = price;
-    }
+    (j.data || []).forEach((v, i) => {
+      if (v != null && +v > 0) map[new Date(t0 + i * 864e5).toISOString().slice(0, 10)] = cents ? +v / 100 : +v;
+    });
     if (Object.keys(map).length) {
       try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map })); } catch {}
     }
     return map;
   } catch (e) {
-    console.warn('CoinGecko histórico BTC EUR no disponible:', e.message);
+    console.warn('Bitview histórico BTC no disponible:', e.message);
     return {};
   }
 }
