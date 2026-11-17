@@ -39,7 +39,7 @@ export async function fetchPools({ allowFile = typeof document !== 'undefined' }
   let results = [], failed = [], source;
   await Promise.all(WALLETS.evm.map(async w => {
     try {
-      const r = await fetch(`${TRACKDEFI_URL}?address=${w.address}`, { signal: AbortSignal.timeout(40000) });
+      const r = await fetch(`${TRACKDEFI_URL}?address=${w.address}`, { signal: AbortSignal.timeout(45000) });
       if (!r.ok) throw new Error(String(r.status));
       results.push({ address: w.address, data: await r.json() });
     } catch (e) { console.warn('TrackDeFi: no se pudo leer', w.address, e.message); failed.push(w.address); }
