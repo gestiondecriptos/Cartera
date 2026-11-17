@@ -42,8 +42,11 @@ function bootMsg(t) {
   if (b) { b.textContent = t; b.style.color = t.startsWith('Error') ? '#f87171' : ''; b.hidden = !t; }
 }
 
-function refresh() {
-  if (!market) return;
+let rt = 0;
+const refresh = () => { clearTimeout(rt); rt = setTimeout(doRefresh, 60); };
+let manualReady = false;
+function doRefresh() {
+  if (!market || !manualReady) return;
   const mErr = store.loadError();
   bootMsg(mErr ? `Error en data/manual.js: ${mErr}` : '');
   const state = store.getState();
@@ -92,9 +95,10 @@ function renderInicio(view, fund, shares) {
   const s = market.sources;
   const badge = $('#data-badge');
   const NAMES = { prices: 'precios', btc: 'BTC', pools: 'Pools', evm: 'EVM', bsc: 'BSC', hyperliquid: 'Hyperliquid', tron: 'Tron', cosmos: 'Cosmos' };
-  const bad = Object.entries(s).filter(([, v]) => v !== 'live').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : v === 'file' ? 'desde archivo' : v === 'none' ? 'sin datos' : 'simulado'}`);
-  badge.className = `badge ${bad.length ? 'mock' : 'live'}`;
-  badge.textContent = bad.length ? `Datos no reales: ${bad.join(', ')}` : 'Datos reales';
+   const loadingN = Object.entries(s).filter(([, v]) => v === 'loading').map(([k]) => NAMES[k] || k);
+  const bad = Object.entries(s).filter(([, v]) => v !== 'live' && v !== 'loading').map(([k, v]) => `${NAMES[k] || k} ${v === 'partial' ? 'parcial' : v === 'file' ? 'desde archivo' : v === 'none' ? 'sin datos' : 'simulado'}`);
+    badge.className = `badge ${bad.length || loadingN.length ? 'mock' : 'live'}`;
+  badge.textContent = (loadingN.length ? `Cargando: ${loadingN.join(', ')}…` : '') + (loadingN.length && bad.length ? ' · ' : '') + (bad.length ? `Datos no reales: ${bad.join(', ')}` : '') || 'Datos reales';
 }
 
 /* ---------- Pestaña 6: datos manuales (solo lectura; se editan en data/manual.js) ---------- */
@@ -211,15 +215,9 @@ $('#manual-root').addEventListener('click', async e => {
 });
 
 /* ---------- Arranque ---------- */
-let started = false;
-function sync() {
-  refresh();
-  if (started) return;
-  started = true;
-  loadMarketData(WALLETS.btc).then(m => { market = m; refresh(); });
-  loadBtcLedger(WALLETS.btc, list => { ledger = list; refresh(); });
-}
 showTab(location.hash.slice(1) || 'inicio');
 loadHistory().then(h => { historyData = h; refresh(); });
 loadBtcEurHistory().then(m => { btcEurHist = m; refresh(); });
-store.load().then(sync);          // primero se leen los datos manuales (data/manual.js)
+loadMarketData(WALLETS.btc, m => { market = m; refresh(); }).then(m => { market = m; refresh(); });
+loadBtcLedger(WALLETS.btc, list => { ledger = list; refresh(); });
+store.load().then(() => { manualReady = true; refresh(); });
