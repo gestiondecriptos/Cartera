@@ -1,4 +1,4 @@
-import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory } from './data.js';
+import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory, btcFixedPricesText } from './data.js';
 import { manualFileText } from './manualtext.js';
 import { discoverEvmTokens } from './chains.js';
 import * as store from './store.js';
@@ -231,6 +231,16 @@ $('#disc-btn').addEventListener('click', async () => {
     const { text, failed } = await discoverEvmTokens();
     out.value = text; out.hidden = false;
     msg.textContent = failed.length ? `Con fallos: ${failed.join('; ')}` : 'Listo: copia el texto.';
+  } catch (e) { msg.textContent = `Error: ${e.message}`; }
+  btn.disabled = false;
+});
+
+$('#fix-btn').addEventListener('click', async () => {
+  const btn = $('#fix-btn'), msg = $('#fix-msg'), out = $('#fix-out');
+  btn.disabled = true; msg.textContent = 'Descargando…';
+  try {
+    out.value = await btcFixedPricesText(store.getState().shares.movements.map(m => m.date));
+    out.hidden = false; msg.textContent = 'Listo: copia todo el texto y sustituye el contenido de js/btcfixed.js.';
   } catch (e) { msg.textContent = `Error: ${e.message}`; }
   btn.disabled = false;
 });
