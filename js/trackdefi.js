@@ -1,19 +1,21 @@
-// Módulo de compatibilidad total para la carga de pools
+// Módulo unificado de compatibilidad para TrackDeFi y On-Chain
 import { fetchOnChainPools } from './onchainpools.js';
+
+// Exportaciones requeridas por el sistema principal
+export let poolItems = [];
+export let rawResults = [];
 
 export function parsePositions(rawData, walletConfig) {
   return [];
 }
 
-// Exportamos tanto la función tradicional como un alias directo por si el index.js llama a otra variante
 export async function loadPools() {
   try {
     const res = await fetchOnChainPools();
-    if (res) {
-      // Si el dashboard espera un objeto envolvente con .positions
-      if (Array.isArray(res.positions)) return res;
-      // Si el dashboard espera directamente el array
-      if (Array.isArray(res)) return { positions: res, source: 'live', raws: [], failed: [], errs: [], fetchedAt: new Date().toISOString(), warnings: [] };
+    if (res && res.positions) {
+      poolItems = res.positions;
+      rawResults = res.raws || [];
+      return res;
     }
   } catch (e) {
     console.warn('Error en loadPools:', e);
@@ -30,5 +32,4 @@ export async function loadPools() {
   };
 }
 
-// Por si el script principal importa directamente fetchPools u otro nombre común
 export const fetchPools = loadPools;
