@@ -87,9 +87,17 @@ export const fetchEvm = () => eachUnit(
       } while (cursor && pages < 5);
       return list;
     };
-    const methods = mKey && net.moralis
+        // RPC directo: solo los contratos de net.tokens (config.js), todo en una petición; si falla, se usa Blockscout
+    const viaRpc = async () => {
+      const addrs = Object.keys(net.tokens), data = '0x70a08231' + w.address.slice(2).toLowerCase().padStart(64, '0');
+      const r = await rpcMany(net.rpc, [{ method: 'eth_getBalance', params: [w.address, 'latest'] }, ...addrs.map(to => ({ method: 'eth_call', params: [{ to, data }, 'latest'] }))]);
+      if (r.some(x => x == null)) throw new Error('lectura incompleta');
+      return [[net.native, hexToNum(r[0], 18)], ...addrs.map((a, i) => [net.tokens[a][0], hexToNum(r[i + 1], net.tokens[a][1])])];
+    };
+    const methods0 = mKey && net.moralis
       ? (net.prefer === 'moralis' ? [['Moralis', viaMoralis], ['Blockscout', viaBlockscout]] : [['Blockscout', viaBlockscout], ['Moralis', viaMoralis]])
-      : [['Blockscout', viaBlockscout]];
+            : [['Blockscout', viaBlockscout]];
+    const methods = net.rpc && net.tokens ? [['RPC', viaRpc], ...methods0] : methods0;
     const errs = [];
     for (const [name, fn] of methods) {
       try {
@@ -102,6 +110,22 @@ export const fetchEvm = () => eachUnit(
   });
 
 /* ---- BSC: BNB y tokens BEP-20 de config.js (RPC público, sin clave) ---- */
+/** Varias lecturas JSON-RPC en una sola petición (batch). Devuelve un array en el mismo orden (null si una lectura falla).
+ *  Si el RPC no admite batch, las lanza sueltas en paralelo. */
+async function rpcMany(url, reqs) {
+  let res;
+  try {
+    const j = await post(url, reqs.map((r, i) => ({ jsonrpc: '2.0', id: i, ...r })));
+    if (!Array.isArray(j)) throw new Error('sin batch');
+    res = j;
+  } catch (e) {
+    if (!/sin batch|^(400|403|413)$/.test(e.message)) throw e;
+    res = await Promise.all(reqs.map((r, i) => post(url, { jsonrpc: '2.0', id: i, ...r }).catch(() => ({ id: i }))));
+  }
+  const out = new Array(reqs.length).fill(null);
+  for (const x of res) if (x && typeof x.result === 'string') out[x.id] = x.result;
+  return out;
+}
 const bscCall = (method, params) => post(CHAINS.bsc.rpc, { jsonrpc: '2.0', id: 1, method, params })
   .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
 const hexToNum = (hex, dec) => Number(BigInt(hex && hex !== '0x' ? hex : '0x0')) / 10 ** dec;
@@ -110,12 +134,13 @@ export const fetchBsc = () => eachUnit(
   async ({ w }, out) => {
     const base = { network: 'BSC', wallet: short(w.address), custody: w.custody };
     const data = '0x70a08231' + w.address.slice(2).toLowerCase().padStart(64, '0');        // balanceOf(address)
-    const [native, ...tokens] = await Promise.all([
-      bscCall('eth_getBalance', [w.address, 'latest']),
-      ...Object.keys(CHAINS.bsc.tokens).map(to => bscCall('eth_call', [{ to, data }, 'latest'])),
+        const r = await rpcMany(CHAINS.bsc.rpc, [
+      { method: 'eth_getBalance', params: [w.address, 'latest'] },
+      ...Object.keys(CHAINS.bsc.tokens).map(to => ({ method: 'eth_call', params: [{ to, data }, 'latest'] })),
     ]);
-    push(out, base, CHAINS.bsc.native, hexToNum(native, 18));
-    Object.values(CHAINS.bsc.tokens).forEach((symbol, i) => push(out, base, symbol, hexToNum(tokens[i], 18)));
+    if (r.some(x => x == null)) throw new Error('el RPC no devolvió todas las lecturas');
+    push(out, base, CHAINS.bsc.native, hexToNum(r[0], 18));
+    Object.values(CHAINS.bsc.tokens).forEach((symbol, i) => push(out, base, symbol, hexToNum(r[i + 1], 18)));
   });
 
 /* ---- Hyperliquid: spot, margen de perpetuos y HYPE en staking ---- */
@@ -185,4 +210,28 @@ export async function loadChains(onPart) {
     onPart?.(snap());
   }));
   return snap();
+}
+
+/** Lista los tokens que hay en tus wallets EVM (Blockscout) y genera el bloque «tokens» para pegar en cada red de config.js */
+export async function discoverEvmTokens() {
+  const units = WALLETS.evm.flatMap(w => CHAINS.evm.filter(net => net.api && (!w.nets || w.nets.includes(net.name))).map(net => ({ w, net })));
+  const byNet = {}, failed = [];
+  await Promise.all(units.map(async ({ w, net }) => {
+    try {
+      let extra = '', pages = 0;
+      do {
+        const j = await orNull(get(`${net.api}/api/v2/addresses/${w.address}/tokens?type=ERC-20${extra}`));
+        for (const t of j?.items || []) {
+          const tk = t.token || {}, a = tk.address_hash || tk.address, dec = Number(tk.decimals ?? 18), amt = Number(t.value) / 10 ** dec;
+          if (a && tk.symbol && known(tk.symbol) && amt > 0) (byNet[net.name] ||= {})[a] = { symbol: tk.symbol, dec, amt, wallet: short(w.address) };
+        }
+        const np = j?.next_page_params;
+        extra = np ? '&' + Object.entries(np).filter(([, v]) => v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&') : '';
+        pages++;
+      } while (extra && pages < 6);
+    } catch (e) { failed.push(`${net.name} ${short(w.address)} (${why(e)})`); }
+  }));
+  const text = Object.entries(byNet).map(([name, toks]) => `// ${name}: pega esto dentro de la entrada de ${name} en CHAINS.evm (config.js)\ntokens: {\n` +
+    Object.entries(toks).sort((x, y) => x[1].symbol.localeCompare(y[1].symbol)).map(([a, t]) => `  '${a}': ['${t.symbol}', ${t.dec}],   // ${+t.amt.toFixed(6)} ${t.symbol} · ${t.wallet}`).join('\n') + '\n},').join('\n\n');
+  return { text: text || '(no se encontró ningún token reconocido)', failed };
 }
