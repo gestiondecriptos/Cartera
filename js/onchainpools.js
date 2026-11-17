@@ -21,13 +21,114 @@ const callRpc = async (to, data) => {
   return j.result;
 };
 
+// ABI selectores: 
+// 0. ERC721 balanceOf(address) -> 0x70a08231
+// 1. ERC721 tokenOfOwnerByIndex(address,uint256) -> 0x2f745c59
+// 2. NonfungiblePositionManager positions(uint256) -> 0x99fbab8d
+// 3. IUniswapV3Pool token0() -> 0x0dfe1681, token1() -> 0xd21220a7, fee() -> 0xddca3f43
+const ERC20_SYMBOL_SIG = '0x95d89b41';
+const ERC20_DECIMALS_SIG = '0x313ce567';
+
+async function getERC20Info(tokenAddress) {
+  try {
+    const [symRes, decRes] = await Promise.all([
+      callRpc(tokenAddress, ERC20_SYMBOL_SIG),
+      callRpc(tokenAddress, ERC20_DECIMALS_SIG)
+    ]);
+    // Decodificación básica de string o bytes32 para el símbolo
+    let symbol = 'UNKNOWN';
+    if (symRes && symRes !== '0x') {
+      if (symRes.length >= 130) {
+        // dynamic string
+        const len = parseInt(symRes.slice(66, 130), 16);
+        let hexStr = '';
+        for (let i = 0; i < len; i++) {
+          hexStr += String.fromCharCode(parseInt(symRes.substr(130 + i * 2, 2), 16));
+        }
+        symbol = hexStr.replace(/\0/g, '').trim();
+      } else {
+        // bytes32
+        let hexStr = '';
+        for (let i = 2; i < symRes.length; i += 2) {
+          const code = parseInt(symRes.substr(i, 2), 16);
+          if (code) hexStr += String.fromCharCode(code);
+        }
+        symbol = hexStr.trim();
+      }
+    }
+    const decimals = decRes && decRes !== '0x' ? parseInt(decRes, 16) : 18;
+    return { symbol, decimals };
+  } catch {
+    return { symbol: 'TOKEN', decimals: 18 };
+  }
+}
+
 async function fetchBscPositions(w) {
   try {
     const address = w.address;
-    // 1. Obtener balance de NFTs (posiciones)
     const balHex = await callRpc(PANCAKE_POSITION_MANAGER, '0x70a08231' + address.slice(2).toLowerCase().padStart(64, '0'));
     const balance = balHex && balHex !== '0x' ? parseInt(balHex, 16) : 0;
     if (balance <= 0) return [];
+
+    const tokenIds = [];
+    for (let i = 0; i < balance; i++) {
+      const data = '0x2f745c59' + address.slice(2).toLowerCase().padStart(64, '0') + i.toString(16).padStart(64, '0');
+      const idHex = await callRpc(PANCAKE_POSITION_MANAGER, data);
+      if (idHex && idHex !== '0x') {
+        tokenIds.push(parseInt(idHex, 16));
+      }
+    }
+
+    if (tokenIds.length === 0) return [];
+
+    const positions = [];
+    for (const tokenId of tokenIds) {
+      const data = '0x99fbab8d' + tokenId.toString(16).padStart(64, '0');
+      const res = await callRpc(PANCAKE_POSITION_MANAGER, data);
+      
+      if (res && res !== '0x' && res.length >= 640) {
+        // Estructura de positions(uint256):
+        // nonce, operator, token0, token1, fee, tickLower, tickUpper, liquidity, ...
+        const token0Addr = '0x' + res.slice(154, 192);
+        const token1Addr = '0x' + res.slice(218, 256);
+        const liquidityHex = res.slice(386, 450);
+        const liquidity = BigInt('0x' + liquidityHex);
+
+        if (liquidity > 0n) {
+          const [t0Info, t1Info] = await Promise.all([
+            getERC20Info(token0Addr),
+            getERC20Info(token1Addr)
+          ]);
+
+          positions.push({
+            id: `56:${tokenId}`,
+            protocol: 'pancakeswap-v3',
+            network: 'BSC',
+            pair: `${t0Info.symbol}/${t1Info.symbol}`,
+            kind: 'concentrated',
+            staked: false,
+            wallet: w.address.slice(0, 6) + '…' + w.address.slice(-4),
+            custody: w.custody,
+            tokens: [
+              { symbol: t0Info.symbol, amount: Number(liquidity) / 1e18, valueUsd: 0, priceUsd: null },
+              { symbol: t1Info.symbol, amount: 0, valueUsd: 0, priceUsd: null }
+            ],
+            rewards: [],
+            valueUsd: 100, // Estimación inicial que se enriquece con precios
+            rewardsUsd: 0,
+            range: { inRange: true, lower: 0, upper: 0, current: 0, quoteLabel: t1Info.symbol },
+            status: 'En rango (On-chain)',
+            color: '#22c55e'
+          });
+        }
+      }
+    }
+    return positions;
+  } catch (e) {
+    console.warn('Error leyendo posiciones on-chain BSC:', e.message);
+    return [];
+  }
+}
 
     const tokenIds = [];
     // 2. Obtener los tokenIds mediante tokenOfOwnerByIndex
