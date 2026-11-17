@@ -2,6 +2,7 @@
 import { WALLETS, COINGECKO_IDS, APR_SOURCES } from './config.js';
 import { loadChains } from './chains.js';
 import { fetchPools, poolItems } from './trackdefi.js';
+import { fetchPoolsOnchain } from './onchainpools.js';
 import { MOCK_PRICES, MOCK_EUR_USD } from './mock-data.js';
 
 const API = 'https://mempool.space/api';
@@ -40,7 +41,18 @@ async function fetchBtcOnchain(addresses) {
   return { balances: out, source: 'live', failed };
 }
 
-export async function loadMarketData(btcAddresses = WALLETS.btc, onUpdate) {
+/** Pools: lectura on-chain (rápida, en vivo); si falla, respaldo con TrackDeFi */
+async function loadPools(prices, ready) {
+  try { return await fetchPoolsOnchain(prices, ready); }
+  catch (e) {
+    console.warn('Pools on-chain:', e.message);
+    const r = await fetchPools();
+    r.errs = [`On-chain: ${e.message}`, ...(r.errs || [])];
+    return r;
+  }
+}
+
+export async function loadMarketData(btcAddresses = WALLETS.btc, onUpdate, ready) {
   const part = { btc: null, chains: null, pools: null };
   let p = null;
   const CH = ['evm', 'bsc', 'hyperliquid', 'tron', 'cosmos'];
@@ -59,11 +71,12 @@ export async function loadMarketData(btcAddresses = WALLETS.btc, onUpdate) {
     };
   };
   const push = () => { if (p && onUpdate) onUpdate(build()); };
+    const pricesP = fetchPrices();
   await Promise.all([
-    fetchPrices().then(r => { p = r; push(); }),
+    pricesP.then(r => { p = r; push(); }),
     fetchBtcOnchain(btcAddresses).then(r => { part.btc = r; push(); }),
     loadChains(c => { part.chains = c; push(); }).then(c => { part.chains = c; }),
-    fetchPools().catch(e => ({ positions: [], source: 'none', raws: [], failed: [], errs: ['Error interno: ' + e.message], fetchedAt: null, warnings: [] })).then(r => { part.pools = r; push(); }),
+        pricesP.then(r => loadPools(r.prices, ready)).catch(e => ({ positions: [], source: 'none', raws: [], failed: [], errs: ['Error interno: ' + e.message], fetchedAt: null, warnings: [] })).then(r => { part.pools = r; push(); }),
   ]);
   return build();
 }
