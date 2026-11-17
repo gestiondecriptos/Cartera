@@ -7,6 +7,7 @@ export const WALLETS = {
     'bc1qk3rvctt64qzvhztxjkmc39rme6me4jklhpa2t0',
     'bc1q9c9zv6pf4f3gtg3rd4nhdvw5ea5gl6yzztz0gv',
     'bc1qvd9ct07qwdcvshcgscplxm68q6aa5lrzdrssev',
+    'bc1qg5egrcugj5lsyhztptus27z942fjvm02edpz2m',
   ],
   evm: [
     { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger' },
