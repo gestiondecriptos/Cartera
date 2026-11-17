@@ -1,6 +1,6 @@
 // Configuración central. Aquí se cambian wallets, activos permitidos y constantes.
 export const STORAGE_KEY = 'cripto-dashboard:v1';
-export const INITIAL_SHARES = 181;
+export const INITIAL_SHARES = 0;
 
 export const WALLETS = {
   btc: [
@@ -55,9 +55,31 @@ export const TRACKDEFI_URL = 'https://trackdefi.app/api/positions';
 export const CHAINS = {
   evm: [
     // moralis: nombre de la red en Moralis (respaldo si hay clave) · prefer: 'moralis' lo usa primero
-    { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth', rpc: 'https://ethereum-rpc.publicnode.com' },
-    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum', rpc: 'https://arbitrum-one-rpc.publicnode.com' },
-    { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com', rpc: 'https://mainnet.unichain.org' },
+        { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth', rpc: 'https://ethereum-rpc.publicnode.com',
+      tokens: {
+        '0xA700b4eB416Be35b2911fd5Dee80678ff64fF6C9': ['AAAVE', 18],
+        '0x5E8C8A7243651DB1384C0dDfDbE39761E8e7E51a': ['ALINK', 18],
+        '0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8': ['AWETH', 18],
+        '0xB62132e35a6c13ee1EE0f84dC5d40bad8d815206': ['NEXO', 18],
+        '0x999999999991E178D52Cd95AFd4b00d066664144': ['sPENDLE', 18],
+        '0x643C4E15d7d62Ad0aBeC4a9BD4b001aA3Ef52d66': ['SYRUP', 18],
+        '0x44D280a4cf39CE417A7c2b36695F95C6D80E5A57': ['USDC', 6],
+        '0xdAC17F958D2ee523a2206206994597C13D831ec7': ['USDT', 6],
+        '0x20Ff75a0d03194aE035905a859c84BA89b106725': ['USDT', 6],
+        '0x6df1C1E379bC5a00a7b4C6e67A203333772f45A8': ['variableDebtEthUSDT', 6],
+      } },
+    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum', rpc: 'https://arbitrum-one-rpc.publicnode.com',
+      tokens: {
+        '0x912CE59144191C1204E64559FE8253a0e49E6548': ['ARB', 18],
+        '0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8': ['AWETH', 18],
+        '0xaf88d065e77c8cC2239327C5EDb3A432268e5831': ['USDC', 6],
+        '0xf611aEb5013fD2c0511c9CD55c7dc5C1140741A6': ['variableDebtArbUSDCn', 6],
+        '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f': ['WBTC', 8],
+      } },
+    { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com', rpc: 'https://mainnet.unichain.org',
+      tokens: {
+        '0x15D0e0c55a3E7eE67152aD7E89acf164253Ff68d': ['HYPE', 18],
+      } },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
   // BSC (sin clave): RPC público de PublicNode + tokens BEP-20 a reconocer (todos con 18 decimales)
