@@ -1,5 +1,6 @@
 // Pools de liquidez reales: API de TrackDeFi (https://trackdefi.app/api/positions?address=...)
 import { WALLETS, TRACKDEFI_URL, COINGECKO_IDS, IGNORE_POOLS } from './config.js';
+import { fetchOnChainPools } from './onchainpools.js';
 
 const CHAIN_NAMES = { 1: 'Ethereum', 10: 'Optimism', 56: 'BSC', 130: 'Unichain', 137: 'Polygon', 8453: 'Base', 42161: 'Arbitrum', 43114: 'Avalanche', 42220: 'Celo', 999: 'Hyperliquid' };
 const short = a => a.slice(0, 6) + '…' + a.slice(-4);
