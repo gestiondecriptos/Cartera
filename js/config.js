@@ -10,7 +10,7 @@ export const WALLETS = {
     'bc1qg5egrcugj5lsyhztptus27z942fjvm02edpz2m',
   ],
   evm: [
-    { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger' },
+    { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger', pools: true },
     { address: '0x34bC9ceBA589CDBD67bC26932a334cC6c263890f', custody: 'metamask' },
   ],
   tron: ['TPR5czP8415hYSBoc8bQ1zYctXLbcfBX31'],
