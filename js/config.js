@@ -10,8 +10,8 @@ export const WALLETS = {
     'bc1qg5egrcugj5lsyhztptus27z942fjvm02edpz2m',
   ],
   evm: [
-    { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger', pools: true },
-    { address: '0x34bC9ceBA589CDBD67bC26932a334cC6c263890f', custody: 'metamask' },
+   { address: '0xB9394692294C000d88d3Bc131c6Bef7B1f9286f2', custody: 'ledger', nets: ['Ethereum', 'Arbitrum', 'Unichain', 'BSC'], hyperliquid: true, pools: true },
+    { address: '0x34bC9ceBA589CDBD67bC26932a334cC6c263890f', custody: 'metamask', nets: ['BSC'] },
   ],
   tron: ['TPR5czP8415hYSBoc8bQ1zYctXLbcfBX31'],
   cosmos: ['cosmos1h2zm4974mmg74839p3syukpz4cxl00v030g6mw'],
@@ -56,7 +56,6 @@ export const CHAINS = {
   evm: [
     // moralis: nombre de la red en Moralis (respaldo si hay clave) · prefer: 'moralis' lo usa primero
     { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth' },
-    { name: 'Base', native: 'ETH', api: 'https://base.blockscout.com', moralis: 'base', prefer: 'moralis' },
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum' },
     { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com' },
   ],
