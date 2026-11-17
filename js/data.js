@@ -63,7 +63,7 @@ export async function loadMarketData(btcAddresses = WALLETS.btc, onUpdate) {
     fetchPrices().then(r => { p = r; push(); }),
     fetchBtcOnchain(btcAddresses).then(r => { part.btc = r; push(); }),
     loadChains(c => { part.chains = c; push(); }).then(c => { part.chains = c; }),
-    fetchPools().then(r => { part.pools = r; push(); }),
+    fetchPools().catch(e => ({ positions: [], source: 'none', raws: [], failed: [], errs: ['Error interno: ' + e.message], fetchedAt: null, warnings: [] })).then(r => { part.pools = r; push(); }),
   ]);
   return build();
 }
