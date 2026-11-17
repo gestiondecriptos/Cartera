@@ -36,7 +36,6 @@ export const poolItems = positions => positions.flatMap(p => [...p.tokens, ...p.
  * Lee las posiciones de todas tus direcciones EVM.
  * source: live (API directa) · partial (alguna dirección falló) · file (data/pools.json guardado por el workflow, si el navegador no puede llamar a la API) · none
  */
-import { fetchOnChainPools } from './onchainpools.js';
 
 export async function fetchPools({ allowFile = typeof document !== 'undefined' } = {}) {
   try {
