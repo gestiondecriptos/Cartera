@@ -45,5 +45,14 @@ const entry = {
 };
 const history = readJson('data/history.json', []);
 history.push(entry);
-fs.writeFileSync(file('data/history.json'), JSON.stringify(history.slice(-4000), null, 1) + '\n');
+// Se conservan todos los snapshots de los últimos 90 días, 1 por día hasta 1 año y 1 por semana más allá (se prefiere el completo al parcial)
+const DAY_MS = 864e5, nowMs = Date.now(), keep = new Map();
+for (const e of history) {
+  const age = (nowMs - Date.parse(e.t)) / DAY_MS, day = e.t.slice(0, 10);
+  const bucket = age <= 90 ? e.t : age <= 365 ? day : 'w' + Math.floor(Date.parse(day) / (7 * DAY_MS));
+  const old = keep.get(bucket);
+  if (!old || !e.partial || old.partial) keep.set(bucket, e);
+}
+const thinned = [...keep.values()].slice(-4000);
+fs.writeFileSync(file('data/history.json'), '[\n' + thinned.map(e => JSON.stringify(e)).join(',\n') + '\n]\n');   // 1 línea por snapshot
 console.log('Snapshot guardado:', entry.t, entry.totalUsd, 'USD', partial ? '(parcial)' : '');
