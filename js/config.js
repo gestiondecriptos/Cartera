@@ -55,9 +55,9 @@ export const TRACKDEFI_URL = 'https://trackdefi.app/api/positions';
 export const CHAINS = {
   evm: [
     // moralis: nombre de la red en Moralis (respaldo si hay clave) · prefer: 'moralis' lo usa primero
-    { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth' },
-    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum' },
-    { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com' },
+    { name: 'Ethereum', native: 'ETH', api: 'https://eth.blockscout.com', moralis: 'eth', rpc: 'https://ethereum-rpc.publicnode.com' },
+    { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum', rpc: 'https://arbitrum-one-rpc.publicnode.com' },
+    { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com', rpc: 'https://mainnet.unichain.org' },
   ],
   hyperliquid: 'https://api.hyperliquid.xyz/info',
   // BSC (sin clave): RPC público de PublicNode + tokens BEP-20 a reconocer (todos con 18 decimales)
