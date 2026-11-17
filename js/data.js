@@ -169,30 +169,45 @@ export async function loadStakingApr() {
     return aprs;
   } catch (e) { console.warn('DefiLlama no disponible:', e.message); return {}; }
 }
-/** Histórico diario de precio BTC en USD desde Bitview (desde 2010, caché 12 h) */
+/** Descarga de Bitview el cierre diario de BTC en USD desde una fecha (devuelve { 'AAAA-MM-DD': precio }) */
+async function fetchBitviewMap(start) {
+  const r = await fetch(`https://bitview.space/api/series/price_close/day1?start=${start}`, { signal: AbortSignal.timeout(20000) });
+  if (!r.ok) throw new Error(String(r.status));
+  const j = await r.json();
+  const maxV = (j.data || []).reduce((m, x) => (x != null && +x > m ? +x : m), 0);
+  const cents = /cent/i.test(String(j.type || '')) || maxV > 5e6;
+  const t0 = Date.parse(start);
+  const map = {};
+  (j.data || []).forEach((v, i) => {
+    if (v != null && +v > 0) map[new Date(t0 + i * 864e5).toISOString().slice(0, 10)] = cents ? +v / 100 : +v;
+  });
+  return map;
+}
+/** Precio BTC (USD) por día: tabla fija de js/btcfixed.js (fechas de tus movimientos) + último año desde Bitview (caché 12 h) */
 export async function loadBtcEurHistory() {
-  const KEY = 'cripto-dashboard:btc-usd-hist:v1';
+  const KEY = 'cripto-dashboard:btc-usd-hist:v2';
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return c.map;
+    if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return { ...BTC_USD_FIXED, ...c.map };
   } catch { /* sin caché */ }
   try {
-    const r = await fetch('https://bitview.space/api/series/price_close/day1?start=2015-01-01', { signal: AbortSignal.timeout(20000) });
-    if (!r.ok) throw new Error(String(r.status));
-    const j = await r.json();
-    const maxV = (j.data || []).reduce((m, x) => (x != null && +x > m ? +x : m), 0);
-    const cents = /cent/i.test(String(j.type || '')) || maxV > 5e6;
-    const t0 = Date.parse('2015-01-01');
-    const map = {};
-    (j.data || []).forEach((v, i) => {
-      if (v != null && +v > 0) map[new Date(t0 + i * 864e5).toISOString().slice(0, 10)] = cents ? +v / 100 : +v;
-    });
+    const map = await fetchBitviewMap(new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10));
     if (Object.keys(map).length) {
       try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map })); } catch {}
     }
-    return map;
+    return { ...BTC_USD_FIXED, ...map };
   } catch (e) {
     console.warn('Bitview histórico BTC no disponible:', e.message);
-    return {};
+    return { ...BTC_USD_FIXED };
   }
+}
+/** Genera el contenido de js/btcfixed.js para las fechas dadas (una sola descarga completa de Bitview) */
+export async function btcFixedPricesText(dates) {
+  const ds = [...new Set(dates.filter(Boolean))].sort();
+  if (!ds.length) return '(no hay movimientos con fecha en data/manual.js)';
+  const map = await fetchBitviewMap(ds[0]);
+  const near = d => { for (let k = 0; k <= 3; k++) for (const sgn of [0, -1, 1]) { const v = map[new Date(Date.parse(d) + sgn * k * 864e5).toISOString().slice(0, 10)]; if (v) return v; } return null; };
+  const lines = ds.map(d => { const p = near(d); return p ? `  '${d}': ${+p.toFixed(2)},` : `  // '${d}': sin dato (Bitview no tiene ese día)`; });
+  return `// Precio de BTC en USD (cierre diario) de las fechas de tus movimientos de participaciones. Valores fijos: no cambian con el tiempo.\n// Se genera con el botón «Generar precios BTC fijos» de la pestaña Datos manuales.\nexport const BTC_USD_FIXED = {\n${lines.join('\n')}\n};\n`;
+}
 }
