@@ -34,11 +34,12 @@ function chart(pts) {
 function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) {
   const eur = n => fmt(n, { style: 'currency', currency: 'EUR' });
   const nearestBtc = d => {
-    if (btcEurHist[d]) return btcEurHist[d];
+    const usdToEur = p => (p > 0 && market.eurUsd > 0 ? p / market.eurUsd : null);
+    if (btcEurHist[d]) return usdToEur(btcEurHist[d]);
     const t = Date.parse(d), keys = Object.keys(btcEurHist);
     if (!keys.length) return null;
     const best = keys.reduce((a, b) => Math.abs(Date.parse(b) - t) < Math.abs(Date.parse(a) - t) ? b : a);
-    return Math.abs(Date.parse(best) - t) <= 7 * 864e5 ? btcEurHist[best] : null;
+    return Math.abs(Date.parse(best) - t) <= 7 * 864e5 ? usdToEur(btcEurHist[best]) : null;
   };
   const ptsMap = new Map();
   // 1. Puntos históricos manuales de movimientos de participaciones (precio BTC desde CoinGecko si está disponible)
@@ -52,7 +53,7 @@ function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) 
     if (h.partial || !(h.fundEur > 0)) continue;
     const d = h.t.slice(0, 10);
     const eurUsd = h.totalEur > 0 ? h.totalUsd / h.totalEur : market.eurUsd;
-    const btcEur = h.btcUsd > 0 ? h.btcUsd / eurUsd : (btcEurHist[d] || null);
+    const btcEur = h.btcUsd > 0 ? h.btcUsd / eurUsd : nearestBtc(d);
     ptsMap.set(d, { t: Date.parse(h.t), fund: h.fundEur, btc: btcEur });
   }
   // 3. Punto actual en vivo
