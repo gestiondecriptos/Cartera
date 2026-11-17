@@ -1,5 +1,6 @@
 import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory } from './data.js';
 import { manualFileText } from './manualtext.js';
+import { discoverEvmTokens } from './chains.js';
 import * as store from './store.js';
 import { aggregateHoldings, fundPrice, computeDcaTable } from './accounting.js';
 import { DUAL_ASSETS, CEX_ASSETS, WALLETS } from './config.js';
@@ -222,3 +223,14 @@ const manualP = store.load();
 loadMarketData(WALLETS.btc, m => { market = m; refresh(); }, manualP).then(m => { market = m; refresh(); });
 loadBtcLedger(WALLETS.btc, list => { ledger = list; refresh(); });
 manualP.then(() => { manualReady = true; refresh(); });
+
+$('#disc-btn').addEventListener('click', async () => {
+  const btn = $('#disc-btn'), msg = $('#disc-msg'), out = $('#disc-out');
+  btn.disabled = true; msg.textContent = 'Leyendo…';
+  try {
+    const { text, failed } = await discoverEvmTokens();
+    out.value = text; out.hidden = false;
+    msg.textContent = failed.length ? `Con fallos: ${failed.join('; ')}` : 'Listo: copia el texto.';
+  } catch (e) { msg.textContent = `Error: ${e.message}`; }
+  btn.disabled = false;
+});
