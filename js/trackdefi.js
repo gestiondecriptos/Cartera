@@ -35,7 +35,17 @@ export const poolItems = positions => positions.flatMap(p => [...p.tokens, ...p.
  * Lee las posiciones de todas tus direcciones EVM.
  * source: live (API directa) · partial (alguna dirección falló) · file (data/pools.json guardado por el workflow, si el navegador no puede llamar a la API) · none
  */
+import { fetchOnChainPools } from './onchainpools.js';
+
 export async function fetchPools({ allowFile = typeof document !== 'undefined' } = {}) {
+  try {
+    const res = await fetchOnChainPools();
+    if (res && res.positions && res.positions.length > 0) {
+      return res;
+    }
+  } catch (e) {
+    console.warn('Pools on-chain fallaron, usando respaldo de TrackDeFi:', e.message);
+  }
   let results = [], failed = [], errs = [], source;
   await Promise.all(WALLETS.evm.map(async w => {
     try {
