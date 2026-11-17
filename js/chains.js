@@ -8,14 +8,14 @@ const get = async (url, opts = {}) => {
   let err;
   for (let i = 0; i < 3; i++) {
     try {
-      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
+      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(12000) });
       if (r.ok) return await r.json();
       err = new Error(String(r.status));
       if (r.status !== 429 && r.status < 500) throw err;
     } catch (e) {
       if (e === err) throw e;
       err = e;
-      if (i >= 1) break;                          // fallos de red/tiempo: solo un reintento
+      if (i >= 1 || /timed out|abort|timeout/i.test(e.message)) break;   // tiempo agotado: sin reintento; otros fallos de red: un reintento
     }
     await new Promise(res => setTimeout(res, 800 * (i + 1)));
   }
@@ -171,16 +171,18 @@ export const fetchCosmos = () => eachUnit(
   });
 
 /** Lee todas las redes en paralelo. status: live | partial (alguna lectura falló) | mock (todas fallaron) */
-export async function loadChains() {
+export async function loadChains(onPart) {
   const jobs = { evm: fetchEvm, bsc: fetchBsc, hyperliquid: fetchHyperliquid, tron: fetchTron, cosmos: fetchCosmos };
-  const sources = {}, items = {}, failed = [], ignored = new Set();
+    const sources = {}, items = {}, failed = [], ignored = new Set();
+  const snap = () => ({ sources: { ...sources }, items: { ...items }, failed: [...failed], ignored: [...ignored] });
   await Promise.all(Object.entries(jobs).map(async ([name, fn]) => {
     let r;
     try { r = await fn(); } catch (e) { r = { items: [], failed: [`${name} (${why(e)})`], ignored: [], attempts: 1 }; }
     sources[name] = !r.failed.length ? 'live' : r.failed.length >= r.attempts ? 'none' : 'partial';
     items[name] = r.items;
     failed.push(...r.failed);
-    r.ignored.forEach(s => ignored.add(s));
+      r.ignored.forEach(s => ignored.add(s));
+    onPart?.(snap());
   }));
-  return { sources, items, failed, ignored: [...ignored] };
+  return snap();
 }
