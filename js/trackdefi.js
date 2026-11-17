@@ -36,13 +36,13 @@ export const poolItems = positions => positions.flatMap(p => [...p.tokens, ...p.
  * source: live (API directa) · partial (alguna dirección falló) · file (data/pools.json guardado por el workflow, si el navegador no puede llamar a la API) · none
  */
 export async function fetchPools({ allowFile = typeof document !== 'undefined' } = {}) {
-  let results = [], failed = [], source;
+  let results = [], failed = [], errs = [], source;
   await Promise.all(WALLETS.evm.map(async w => {
     try {
       const r = await fetch(`${TRACKDEFI_URL}?address=${w.address}`, { signal: AbortSignal.timeout(45000) });
       if (!r.ok) throw new Error(String(r.status));
       results.push({ address: w.address, data: await r.json() });
-    } catch (e) { console.warn('TrackDeFi: no se pudo leer', w.address, e.message); failed.push(w.address); }
+    } catch (e) { console.warn('TrackDeFi: no se pudo leer', w.address, e.message); failed.push(w.address); errs.push(e.message); }
   }));
   source = !failed.length ? 'live' : results.length ? 'partial' : 'none';
   let fetchedAt = results.map(r => r.data.fetchedAt).filter(Boolean).sort()[0] || null;
@@ -56,5 +56,5 @@ export async function fetchPools({ allowFile = typeof document !== 'undefined' }
   }
   const positions = results.flatMap(({ address, data }) => parsePositions(data, WALLETS.evm.find(w => w.address === address) || { address, custody: 'ledger' }));
   const warnings = [...new Set(results.flatMap(r => r.data.warnings || []))];
-  return { positions, source, raws: results, failed, fetchedAt, warnings };
+  return { positions, source, raws: results, failed, errs, fetchedAt, warnings };
 }
