@@ -33,13 +33,20 @@ function chart(pts) {
 // Evolución comparativa: Precio Participación (EUR) vs Precio Bitcoin (EUR) en base 100
 function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) {
   const eur = n => fmt(n, { style: 'currency', currency: 'EUR' });
+    const fx = btcEurHist.fx || {};
+  const fxAt = d => {   // USD por EUR de esa fecha (dato más cercano, hasta 10 días); si no hay, el de hoy
+    if (fx[d]) return fx[d];
+    const t = Date.parse(d); let best = null, bd = 10 * 864e5;
+    for (const k in fx) { const dd = Math.abs(Date.parse(k) - t); if (dd < bd) { bd = dd; best = k; } }
+    return best ? fx[best] : market.eurUsd;
+  };
+  const usdToEur = (p, d) => { const r = fxAt(d); return p > 0 && r > 0 ? p / r : null; };
   const nearestBtc = d => {
-    const usdToEur = p => (p > 0 && market.eurUsd > 0 ? p / market.eurUsd : null);
-    if (btcEurHist[d]) return usdToEur(btcEurHist[d]);
+    if (btcEurHist[d]) return usdToEur(btcEurHist[d], d);
     const t = Date.parse(d), keys = Object.keys(btcEurHist);
     if (!keys.length) return null;
     const best = keys.reduce((a, b) => Math.abs(Date.parse(b) - t) < Math.abs(Date.parse(a) - t) ? b : a);
-    return Math.abs(Date.parse(best) - t) <= 7 * 864e5 ? usdToEur(btcEurHist[best]) : null;
+    return Math.abs(Date.parse(best) - t) <= 7 * 864e5 ? usdToEur(btcEurHist[best], d) : null;
   };
   const ptsMap = new Map();
   // 1. Puntos históricos manuales de movimientos de participaciones (precio BTC desde CoinGecko si está disponible)
