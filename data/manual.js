@@ -9,9 +9,9 @@ export const MANUAL = {
 
   // 2) Dual Investment (red BSC): cantidad de cada activo y deuda en USDT
   dualLedger: { BTCB: 0.001, ETH: 0, BNB: 0, USDT: 76.70 },
-  dualDebtLedger: 148.40,
+  dualDebtLedger: 0,
   dualBnb: { BTCB: 0.00296628, ETH: 0.04445563, BNB: 0, USDT: 0 },
-  dualDebtBnb: 320.23,
+  dualDebtBnb: 0,
 
   // 3) SKY en staking (cantidad)
   skyStaking: 2979.08,
