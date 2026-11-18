@@ -19,6 +19,11 @@ export function normalizeManual(m = {}) {
       base: m.shares?.base != null ? num(m.shares.base) : INITIAL_SHARES,
       movements: (m.shares?.movements || []).map(x => ({ date: String(x.date || ''), type: x.type === 'sub' ? 'sub' : 'add', qty: num(x.qty), price: num(x.price) })),
     },
+        manualAssets: (m.manualAssets || []).filter(x => x && x.symbol && num(x.amount) !== 0).map(x => ({
+      network: String(x.network || 'Manual'), symbol: String(x.symbol), amount: num(x.amount),
+      custody: ['ledger', 'metamask', 'phantom', 'exchange'].includes(x.custody) ? x.custody : 'metamask',
+      ...(['colateral', 'deuda', 'pools', 'staking', 'dual', 'libre'].includes(x.category) ? { category: x.category } : {}),
+    })),
     dca: (m.dca || []).map(r => ({ month: String(r.month || ''), buyUsd: num(r.buyUsd), debt: num(r.debt), ltv: num(r.ltv), btc: num(r.btc) })),   // en el orden del archivo: la última fila es la última línea
     poolEntries: Object.fromEntries(Object.entries(m.poolEntries || {})
       .filter(([, e]) => e && e.date && num(e.invested) > 0)
