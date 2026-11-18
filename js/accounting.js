@@ -50,6 +50,7 @@ export function aggregateHoldings({ onchain = [], state, prices, eurUsd }) {
     ...(state.dualDebtLedger > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebtLedger, network: 'BSC', wallet: '0xB939…86f2', custody: 'ledger' }] : []),
     ...(state.dualBnb || []).map(p => ({ symbol: p.asset, amount: p.amount, network: 'BSC', wallet: '0x34bC…890f', custody: 'metamask', category: 'dual' })),
     ...(state.dualDebtBnb > 0 ? [{ symbol: 'variableDebtUSDT', amount: state.dualDebtBnb, network: 'BSC', wallet: '0x34bC…890f', custody: 'metamask' }] : []),
+    ...(state.manualAssets || []).map(x => ({ symbol: x.symbol, amount: x.amount, network: x.network, wallet: 'Manual', custody: x.custody, ...(x.category ? { category: x.category } : {}) })),
     ...Object.entries(state.cex).map(([symbol, amount]) => ({ symbol, amount, network: 'CEX', custody: 'exchange', category: 'libre' })),
     ...Object.entries(state.stakingManual || {}).map(([symbol, amount]) => ({
       symbol, amount,
