@@ -95,7 +95,12 @@ export const MANUAL = {
     { month: '2026-11', buyUsd: 68.50, debt: 595.85, ltv: 57, btc: 0.02543180 },
     { month: '2026-11', buyUsd: 64.27, debt: 660.12, ltv: 63, btc: 0.02643180 },
   ],
-
+  // 7) Activos manuales en otras redes o sitios (p. ej. Base): una línea por activo.
+  //    custody: 'ledger' | 'metamask' | 'phantom' | 'exchange'. Para una deuda usa el prefijo variableDebt (ej. 'variableDebtUSDC').
+  manualAssets: [
+   { network: 'Base', symbol: 'USDC', amount: 0, custody: 'metamask' },
+   { network: 'Base', symbol: 'ETH', amount: 0.00091, custody: 'metamask' },
+  ],
   // 6) Entradas de pools (para IL, tiempo y ROI). La clave es el «id» que aparece bajo cada pool en la pestaña Pools.
   //    a0 y a1 = cantidad inicial de cada token (opcional: 0 si no la sabes; sin ellas no se calcula el IL).
   poolEntries: {
