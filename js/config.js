@@ -63,8 +63,11 @@ export const CHAINS = {
         '0xB62132e35a6c13ee1EE0f84dC5d40bad8d815206': ['NEXO', 18],
         '0x999999999991E178D52Cd95AFd4b00d066664144': ['sPENDLE', 18],
         '0x643C4E15d7d62Ad0aBeC4a9BD4b001aA3Ef52d66': ['SYRUP', 18],
+        '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0': ['wstETH', 18],
+        '0x0B925eD163218f6662a35e0f0371Ac234f9E9371': ['aETHwstETH', 18],
         '0xdAC17F958D2ee523a2206206994597C13D831ec7': ['USDT', 6],
         '0x6df1C1E379bC5a00a7b4C6e67A203333772f45A8': ['variableDebtEthUSDT', 6],
+        '0x72E95b8931767C79bA4EeE721354d6E99a61D004': ['variableDebtEthUSDC', 6],
       } },
     { name: 'Arbitrum', native: 'ETH', api: 'https://arbitrum.blockscout.com', moralis: 'arbitrum', rpc: 'https://arbitrum-one-rpc.publicnode.com',
       tokens: {
@@ -72,7 +75,12 @@ export const CHAINS = {
         '0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8': ['AWETH', 18],
         '0xaf88d065e77c8cC2239327C5EDb3A432268e5831': ['USDC', 6],
         '0xf611aEb5013fD2c0511c9CD55c7dc5C1140741A6': ['variableDebtArbUSDCn', 6],
+        '0xfb00ac187a8eb5afae4eace434f493eb62672df7': ['variableDebtArbUSDT', 6],
         '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f': ['WBTC', 8],
+        '0x078f358208685046a11C85e8ad32895DED33A249': ['aArbWBTC', 8],
+        '0x5979D7b546E38E414F7E9822514be443A4800529': ['wstETH', 8],
+        '0x513c7E3a9c69cA3e22550eF58AC1C0088e918FFf': ['aArbwstETH', 8],
+        
       } },
     { name: 'Unichain', native: 'ETH', api: 'https://unichain.blockscout.com', rpc: 'https://mainnet.unichain.org',
       tokens: {
@@ -96,6 +104,7 @@ export const CHAINS = {
       '0xf8bb2be50647447fb355e3a77b81be4db64107cd': 'variableDebtBnbUSDT',
       '0x0e76414d433ddfe8004d2a7505d218874875a996': 'variableDebtBnbWBNB',
       '0x7b1e82f4f542fbb25d64c5523fe3e44abe4f2702': 'variableDebtBnbBTCB',
+      '0xcDBBEd5606d9c5C98eEedd67933991dC17F0c68d': 'variableDebtBnbUSDC'
     },
   },
   tronApi: 'https://api.trongrid.io',
