@@ -183,23 +183,32 @@ async function fetchBitviewMap(start) {
   });
   return map;
 }
-/** Precio BTC (USD) por día: tabla fija de js/btcfixed.js (fechas de tus movimientos) + último año desde Bitview (caché 12 h) */
+/** USD por 1 EUR (BCE vía Frankfurter) desde una fecha: { 'AAAA-MM-DD': tipo }. Si el rango es largo la API puede devolver datos semanales */
+async function fetchEurUsdMap(start) {
+  const r = await fetch(`https://api.frankfurter.dev/v1/${start}..?base=EUR&symbols=USD`, { signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw new Error(String(r.status));
+  const j = await r.json(), out = {};
+  for (const [d, v] of Object.entries(j.rates || {})) if (v?.USD > 0) out[d] = v.USD;
+  return out;
+}
+/** Precio BTC (USD) por día: tabla fija de js/btcfixed.js (fechas de tus movimientos) + último año desde Bitview (caché 12 h).
+ *  El resultado lleva además, en la propiedad no enumerable «fx», el EUR/USD de cada fecha para convertir a EUR con el cambio de esa época. */
 export async function loadBtcEurHistory() {
-  const KEY = 'cripto-dashboard:btc-usd-hist:v2';
+  const KEY = 'cripto-dashboard:btc-usd-hist:v3';
+  const build = (map, fx) => { const out = { ...BTC_USD_FIXED, ...map }; Object.defineProperty(out, 'fx', { value: { ...EURUSD_FIXED, ...fx } }); return out; };
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return { ...BTC_USD_FIXED, ...c.map };
+    if (c && Date.now() - c.t < 12 * 3600e3 && c.map && Object.keys(c.map).length) return build(c.map, c.fx || {});
   } catch { /* sin caché */ }
-  try {
-    const map = await fetchBitviewMap(new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10));
-    if (Object.keys(map).length) {
-      try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map })); } catch {}
-    }
-    return { ...BTC_USD_FIXED, ...map };
-  } catch (e) {
-    console.warn('Bitview histórico BTC no disponible:', e.message);
-    return { ...BTC_USD_FIXED };
+  const start = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
+  const [map, fx] = await Promise.all([
+    fetchBitviewMap(start).catch(e => { console.warn('Bitview histórico BTC no disponible:', e.message); return {}; }),
+    fetchEurUsdMap(start).catch(e => { console.warn('EUR/USD histórico no disponible:', e.message); return {}; }),
+  ]);
+  if (Object.keys(map).length) {
+    try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map, fx })); } catch {}
   }
+  return build(map, fx);
 }
 /** Genera el contenido de js/btcfixed.js para las fechas dadas (una sola descarga completa de Bitview) */
 export async function btcFixedPricesText(dates) {
@@ -207,6 +216,20 @@ export async function btcFixedPricesText(dates) {
   if (!ds.length) return '(no hay movimientos con fecha en data/manual.js)';
   const map = await fetchBitviewMap(ds[0]);
   const near = d => { for (let k = 0; k <= 3; k++) for (const sgn of [0, -1, 1]) { const v = map[new Date(Date.parse(d) + sgn * k * 864e5).toISOString().slice(0, 10)]; if (v) return v; } return null; };
-  const lines = ds.map(d => { const p = near(d); return p ? `  '${d}': ${+p.toFixed(2)},` : `  // '${d}': sin dato (Bitview no tiene ese día)`; });
-  return `// Precio de BTC en USD (cierre diario) de las fechas de tus movimientos de participaciones. Valores fijos: no cambian con el tiempo.\n// Se genera con el botón «Generar precios BTC fijos» de la pestaña Datos manuales.\nexport const BTC_USD_FIXED = {\n${lines.join('\n')}\n};\n`;
+  const fxOf = async d => {   // la API devuelve el último día hábil anterior si la fecha es festivo o fin de semana
+    try { const r = await fetch(`https://api.frankfurter.dev/v1/${d}?base=EUR&symbols=USD`, { signal: AbortSignal.timeout(15000) }); return r.ok ? (await r.json()).rates?.USD || null : null; } catch { return null; }
+  };
+  const fx = {};
+  for (let i = 0; i < ds.length; i += 6) await Promise.all(ds.slice(i, i + 6).map(async d => { fx[d] = await fxOf(d); }));
+  const line = (d, v, why) => (v ? `  '${d}': ${v},` : `  // '${d}': ${why}`);
+  return `// Datos fijos de las fechas de tus movimientos de participaciones. Se generan con el botón «Generar precios BTC fijos» de la pestaña Datos manuales.
+// Precio de BTC en USD (cierre diario)
+export const BTC_USD_FIXED = {
+${ds.map(d => line(d, near(d) && +near(d).toFixed(2), 'sin dato de Bitview')).join('\n')}
+};
+// USD por 1 EUR (BCE)
+export const EURUSD_FIXED = {
+${ds.map(d => line(d, fx[d] && +(+fx[d]).toFixed(4), 'sin dato del BCE')).join('\n')}
+};
+`;
 }
