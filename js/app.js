@@ -174,7 +174,8 @@ function renderManual(state, view, fund, shares) {
       <div class="card"><h2 class="mb-2 font-semibold">SKY staking + PSOL staking</h2><table class="tbl"><tbody>
         ${row('SKY en staking (Metamask Ledger)', qty(state.stakingManual.SKY || 0))}
         ${row('PSOL en staking (Phantom)', qty(state.stakingManual.PSOL || 0))}</tbody></table></div>
-
+      ${state.manualAssets.length ? `<div class="card"><h2 class="mb-2 font-semibold">Otros activos manuales</h2><table class="tbl"><tbody>
+        ${state.manualAssets.map(x => row(`${esc(x.symbol)} <span class="label">${esc(x.network)} · ${esc(x.custody)}</span>`, qty(x.amount))).join('')}</tbody></table></div>` : ''}
       <div class="card"><h2 class="mb-2 font-semibold">DCA</h2><table class="tbl"><tbody>
         ${row('Meses registrados', state.dca.length)}
         ${row('Último mes', last ? last.month : '—')}
