@@ -78,6 +78,7 @@ export const MANUAL = {
       { date: '2026-06-05', type: 'add', qty: 8, price: 50.00 },
       { date: '2026-09-26', type: 'add', qty: 3, price: 71.50 },
       { date: '2026-10-16', type: 'add', qty: 4, price: 69.10 },
+      { date: '2026-11-17', type: 'add', qty: 8, price: 54.00 },
     ],
   },
   // 5) Estrategia DCA con BTC como colateral: una línea por compra. La ÚLTIMA línea es la que cuenta
