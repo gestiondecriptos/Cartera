@@ -8,6 +8,8 @@ const POOL_CHAINS = [
   { chainId: 56, network: 'BSC', protocol: 'pancakeswap-v3', rpc: CHAINS.bsc.rpc,
     npm: '0x46A15B0b27311cedF172AB29E4f4766fbE7F4364',    // NonfungiblePositionManager de Pancake V3
     farm: '0x556B9306565093C855AEA9AE92A594704c2Cd59e' },  // MasterChef V3 (custodia los NFT en farming)
+  { chainId: 130, network: 'Unichain', protocol: 'uniswap-v3', rpc: 'https://mainnet.unichain.org',
+    npm: '0x943e6e07a7E8E791dAFC44083e54041D743C46E9' },    // NonfungiblePositionManager de Uniswap v3 (sin farm)
 ];
 const SEL = { positions: '0x99fbab88', ownerOf: '0x6352211e', balanceOf: '0x70a08231', byIndex: '0x2f745c59', factory: '0xc45a0155',
   getPool: '0x1698ee82', slot0: '0x3850c7bd', collect: '0xfc6f7865', decimals: '0x313ce567', symbol: '0x95d89b41', pendingCake: '0xce5f39c6' };
@@ -58,13 +60,14 @@ export function v3Amounts(L, sqrtX96, tickLower, tickUpper) {
 async function readChain(cfg, wallets, prices, knownIds, errs) {
   const MAX = (2n ** 128n - 1n);
   const call = (to, sel, ...args) => ({ to, data: sel + args.join('') });
+  const farmCall = (sel, ...args) => (cfg.farm ? call(cfg.farm, sel, ...args) : { to: cfg.npm, data: '0x' });   // sin farm: llamada vacía (resultado null)
   const px = sym => prices[normalizeSymbol(sym).symbol]?.usd || null;
 
   // Ronda 1: nº de NFT de cada wallet (en su cartera y en farming), factory y posiciones ya conocidas
   const w0 = wallets.map(w => w.address);
   const r1 = await rpc(cfg.rpc, [
     call(cfg.npm, SEL.factory),
-    ...w0.flatMap(a => [call(cfg.npm, SEL.balanceOf, aArg(a)), call(cfg.farm, SEL.balanceOf, aArg(a))]),
+    ...w0.flatMap(a => [call(cfg.npm, SEL.balanceOf, aArg(a)), farmCall(SEL.balanceOf, aArg(a))]),
   ]);
   if (!r1[0]) throw new Error(`RPC de ${cfg.network} sin respuesta`);
   const factory = addr(words(r1[0])[0]);
@@ -74,7 +77,7 @@ async function readChain(cfg, wallets, prices, knownIds, errs) {
   w0.forEach((a, i) => {
     const nNpm = Math.min(Number(r1[1 + 2 * i] ? big(words(r1[1 + 2 * i])[0]) : 0n), 40), nFarm = Math.min(Number(r1[2 + 2 * i] ? big(words(r1[2 + 2 * i])[0]) : 0n), 40);
     for (let k = 0; k < nNpm; k++) idCalls.push(call(cfg.npm, SEL.byIndex, aArg(a), nArg(k)));
-    for (let k = 0; k < nFarm; k++) idCalls.push(call(cfg.farm, SEL.byIndex, aArg(a), nArg(k)));
+    for (let k = 0; k < nFarm; k++) idCalls.push(farmCall(SEL.byIndex, aArg(a), nArg(k)));
   });
   const r2 = await rpc(cfg.rpc, idCalls);
   const ids = [...new Set([...knownIds, ...r2.filter(Boolean).map(h => big(words(h)[0]).toString())])];
@@ -88,7 +91,7 @@ async function readChain(cfg, wallets, prices, knownIds, errs) {
     if (!d || !o) return;                                  // NFT quemado (posición cerrada)
     const w = words(d), owner = addr(words(o)[0]);
     const mine = w0.find(a => a.toLowerCase() === owner.toLowerCase());
-    const staked = owner.toLowerCase() === cfg.farm.toLowerCase();
+    const staked = !!cfg.farm && owner.toLowerCase() === cfg.farm.toLowerCase();
     if (!mine && !staked) return;                          // pertenece a otra persona
     const p = { id, owner, staked, wallet: wallets.find(x => x.address.toLowerCase() === (mine || '').toLowerCase()) || wallets[0],
       t0: addr(w[2]), t1: addr(w[3]), fee: Number(big(w[4])), tl: Number(signed(w[5])), tu: Number(signed(w[6])), L: big(w[7]) };
@@ -147,10 +150,16 @@ export async function fetchPoolsOnchain(prices, ready) {
   const errs = [], positions = [];
   if (wallets.length) {
     const entries = Object.keys(store.getState().poolEntries);
+    let failedChains = 0, tried = 0;
     for (const cfg of POOL_CHAINS) {
+      const ws = wallets.filter(w => !w.nets || w.nets.includes(cfg.network));
+      if (!ws.length) continue;
+      tried++;
       const known = entries.filter(id => id.startsWith(cfg.chainId + ':')).map(id => id.split(':')[1]);
-      positions.push(...(await readChain(cfg, wallets, prices, known, errs)));
+      try { positions.push(...(await readChain(cfg, ws, prices, known, errs))); }
+      catch (e) { failedChains++; errs.push(`${cfg.network}: ${e.message}`); }       // una red caída no tira las demás
     }
+    if (tried && failedChains === tried) throw new Error(errs.join('; '));            // todas fallaron: se usa el respaldo (TrackDeFi)
   }
   const list = positions.filter(p => !IGNORE_POOLS.includes(p.pair));
   return { positions: list, source: errs.length ? 'partial' : 'live', raws: [], failed: [], errs, fetchedAt: null, warnings: [] };
