@@ -32,19 +32,20 @@ export function render({ view, state, market, ledger = [] }) {
   const onchain = s => s.network === 'Bitcoin';
   const isCex = s => s.network === 'CEX' || s.custody === 'exchange';
   const anon = sum(onchain), kyc = sum(s => !onchain(s));
-
+  const pe = market.prices.BTC.eur || price / market.eurUsd;
+  const bv = v => `${qty(v)} BTC · ${fmt(v * pe, { style: 'currency', currency: 'EUR' })}`;
   const bars = [
     stackedBar('Anónimo (No-KYC) vs KYC', [
-      { label: 'Anónimo', value: anon, color: '#22c55e' }, { label: 'KYC', value: kyc, color: '#f7931a' }]),
+      { label: 'Anónimo', value: anon, color: '#22c55e' }, { label: 'KYC', value: kyc, color: '#f7931a' }], bv),
     stackedBar('KYC: autocustodia vs exchange', [
       { label: 'Autocustodia', value: sum(s => !onchain(s) && !isCex(s)), color: '#38bdf8' },
-      { label: 'Exchange', value: sum(s => !onchain(s) && isCex(s)), color: '#a78bfa' }]),
+      { label: 'Exchange', value: sum(s => !onchain(s) && isCex(s)), color: '#a78bfa' }], bv),
     stackedBar('Tipo de BTC', [
       { label: 'BTC onchain', value: anon, color: '#f7931a' },
       { label: 'WBTC', value: sum(s => /wbtc/i.test(s.raw)), color: '#38bdf8' },
       { label: 'BTCB', value: sum(s => /btcb/i.test(s.raw)), color: '#fbbf24' },
       { label: 'cbBTC', value: sum(s => /cbbtc/i.test(s.raw)), color: '#22c55e' },
-      { label: 'BTC Exchanges', value: sum(s => isCex(s)), color: '#a78bfa' }]),
+      { label: 'BTC Exchanges', value: sum(s => isCex(s)), color: '#a78bfa' }], bv),
   ].join('');
 
   const L = ledger, priced = L.filter(r => r.price);
