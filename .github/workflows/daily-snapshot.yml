@@ -25,6 +25,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Leer resumen de ETFs
+        continue-on-error: true
+        run: node scripts/etf.mjs
       - name: Calcular y guardar el snapshot
         env:
           INCLUDE_PARTIAL: ${{ inputs.include_partial }}
@@ -34,6 +37,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@users.noreply.github.com"
           git add data/history.json
+          [ -f data/etf.json ] && git add data/etf.json || true
           git diff --cached --quiet && { echo "Sin cambios"; exit 0; }
           git commit -m "Snapshot $(date -u +%F-%H%M)"
           git pull --rebase
