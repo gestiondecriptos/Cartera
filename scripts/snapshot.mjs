@@ -15,8 +15,7 @@ const state = store.getState();
 const shares = store.totalShares();
 
 const market = await loadMarketData(WALLETS.btc);
-// Los pools leídos se guardan para que la web los muestre si el navegador no puede consultar TrackDeFi
-if (market.pools.source === 'live') fs.writeFileSync(file('data/pools.json'), JSON.stringify({ fetchedAt: market.pools.fetchedAt, results: market.pools.raws }) + '\n');
+
 const s = market.sources;
 if (s.prices !== 'live' || s.btc !== 'live') {
   console.error('Precios o BTC on-chain no son reales (API caída o límite de peticiones). No se guarda nada.', s);
