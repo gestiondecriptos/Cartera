@@ -90,8 +90,7 @@ function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) 
   const chgF = (pts.at(-1).fund / f0 - 1) * 100;
   const chgB = b0 && btcPts.length > 1 ? (btcPts.at(-1).btc / b0 - 1) * 100 : null;
   const day = t => new Date(t).toISOString().slice(0, 10);
-
-  
+  return `
   <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Participación vs Bitcoin">
     <path d="${dF}" fill="none" stroke="#22c55e" stroke-width="2.2"/>
     ${normB.length >= 2 ? `<path d="${dB}" fill="none" stroke="#f7931a" stroke-width="2"/>` : ''}
