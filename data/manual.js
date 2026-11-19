@@ -101,6 +101,11 @@ export const MANUAL = {
    { network: 'Base', symbol: 'USDC', amount: 0, custody: 'metamask' },
    { network: 'Base', symbol: 'ETH', amount: 0.00091, custody: 'metamask' },
   ],
+  // 8) Activos en órdenes abiertas (no aparecen en ninguna wallet). Una línea por activo.
+  //    network: 'CEX' por defecto · custody: 'exchange' por defecto · where: texto libre opcional (ej. 'Binance')
+  openOrders: [
+    { symbol: 'USDC', amount: 1, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
+  ],
   // 6) Entradas de pools (para IL, tiempo y ROI). La clave es el «id» que aparece bajo cada pool en la pestaña Pools.
   //    a0 y a1 = cantidad inicial de cada token (opcional: 0 si no la sabes; sin ellas no se calcula el IL).
   poolEntries: {
