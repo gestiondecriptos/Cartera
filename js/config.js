@@ -101,6 +101,7 @@ export const CHAINS = {
       '0x56a7ddc4e848EbF43845854205ad71D5D5F72d3D': 'aBnbBTCB',
       '0x9b00a09492a626678e5a3009982191586c444df9': 'aBnbWBNB',
       '0xa9251ca9de909cb71783723713b21e4233fbf1b1': 'aBnbUSDT',
+      '0x00901a076785e0906d1028c7d6372d247bec7d61': 'aBnbUSDC',
       '0xf8bb2be50647447fb355e3a77b81be4db64107cd': 'variableDebtBnbUSDT',
       '0x0e76414d433ddfe8004d2a7505d218874875a996': 'variableDebtBnbWBNB',
       '0x7b1e82f4f542fbb25d64c5523fe3e44abe4f2702': 'variableDebtBnbBTCB',
