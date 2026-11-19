@@ -10,6 +10,7 @@ import * as staking from './tabs/staking.js';
 import * as bitcoin from './tabs/bitcoin.js';
 import * as home from './tabs/home.js';
 import * as metrics from './tabs/metrics.js';
+import { initChartTips } from './charts.js';
 
 const $ = s => document.querySelector(s);
 const fmt = (n, o) => n.toLocaleString('es-ES', o);
@@ -217,6 +218,7 @@ $('#manual-root').addEventListener('click', async e => {
 });
 
 /* ---------- Arranque ---------- */
+initChartTips();
 showTab(location.hash.slice(1) || 'inicio');
 loadHistory().then(h => { historyData = h; refresh(); });
 btcEurHist = fixedBtcHistory();   // tabla fija al instante; el último año llega después
