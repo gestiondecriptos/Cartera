@@ -185,7 +185,7 @@ async function fetchBitviewMap(start) {
 }
 /** USD por 1 EUR (BCE vía Frankfurter) desde una fecha: { 'AAAA-MM-DD': tipo }. Si el rango es largo la API puede devolver datos semanales */
 async function fetchEurUsdMap(start) {
-  const r = await fetch(`https://api.frankfurter.dev/v1/${start}..?base=EUR&symbols=USD`, { signal: AbortSignal.timeout(15000) });
+  const r = await fetch(`https://api.frankfurter.dev/v1/${start}..?base=EUR&symbols=USD`, { signal: AbortSignal.timeout(6000) });
   if (!r.ok) throw new Error(String(r.status));
   const j = await r.json(), out = {};
   for (const [d, v] of Object.entries(j.rates || {})) if (v?.USD > 0) out[d] = v.USD;
@@ -209,6 +209,12 @@ export async function loadBtcEurHistory() {
     try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map, fx })); } catch {}
   }
   return build(map, fx);
+}
+/** Solo la tabla fija (sin red): permite pintar el gráfico al instante mientras llegan los datos del último año */
+export function fixedBtcHistory() {
+  const out = { ...BTC_USD_FIXED };
+  Object.defineProperty(out, 'fx', { value: { ...EURUSD_FIXED } });
+  return out;
 }
 /** Genera el contenido de js/btcfixed.js para las fechas dadas (una sola descarga completa de Bitview) */
 export async function btcFixedPricesText(dates) {
