@@ -3,7 +3,7 @@ import { normalizeSymbol, poolPerformance } from '../accounting.js';
 
 let sel = 0, last = null;
 const SRC = {
-  none: 'No se pudieron leer los pools (TrackDeFi no responde). No están incluidos en el patrimonio.',
+  none: 'No se pudieron leer los pools. No están incluidos',
   partial: 'Algunas direcciones no se pudieron leer: la lista puede estar incompleta.',
 };
 
@@ -48,7 +48,7 @@ export function render(ctx) {
         <td class="num r">${usd(p.rewardsUsd)}</td>
         ${(perf => perf ? `<td class="num r ${cls(perf.ilUsd ?? 0)}">${perf.ilUsd == null ? '—' : usd(perf.ilUsd) + '<br>' + pct(perf.ilPct, 2)}</td><td class="num r">${Math.round(perf.days)} d</td><td class="num r ${cls(perf.roiUsd)}">${usd(perf.roiUsd)}<br>${pct(perf.roiPct, 2)} · ${pct(perf.annualPct, 1)} anual</td>` : '<td class="num r label">—</td><td class="num r label">—</td><td class="num r label">—</td>')(poolPerformance(p, ctx.state?.poolEntries?.[p.id]))}</tr>`).join('')}</tbody></table>`
         : '<p class="label">No hay posiciones.</p>'}
-      <p class="label mt-3">Fuente: TrackDeFi. IL, tiempo y ROI se calculan con la entrada manual. (ROI = valor + comisiones pendientes − invertido; IL = valor actual − valor de mantener los tokens iniciales). Pulsando en la pool se ve su rango.</p>
+      <p class="label mt-3">Fuente: lectura on-chain directa. IL, tiempo y ROI se calculan con la entrada manual. (ROI = valor + comisiones pendientes − invertido; IL = valor actual − valor de mantener los tokens iniciales). Pulsando en la pool se ve su rango.</p>
       ${warnings?.length ? `<details class="label mt-2"><summary class="cursor-pointer">TrackDeFi no pudo consultar ${warnings.length} fuentes (por ejemplo pools Uniswap V2 en algunas redes). Si tienes posiciones ahí, podrían faltar.</summary><ul class="mt-1 list-disc pl-5">${warnings.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
