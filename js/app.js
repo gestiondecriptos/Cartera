@@ -10,7 +10,7 @@ import * as staking from './tabs/staking.js';
 import * as bitcoin from './tabs/bitcoin.js';
 import * as home from './tabs/home.js';
 import * as metrics from './tabs/metrics.js';
-import { initChartTips } from './charts.js';
+import { initChartTips, axisChart } from './charts.js';
 
 const $ = s => document.querySelector(s);
 const fmt = (n, o) => n.toLocaleString('es-ES', o);
@@ -109,35 +109,28 @@ let copyMap = {};
 function capitalCharts(movements) {
   const movs = [...movements].filter(m => m.date).sort((a, b) => a.date.localeCompare(b.date));
   if (!movs.length) return '<p class="label">Sin movimientos registrados.</p>';
+  const flow = m => (m.type === 'sub' ? -1 : 1) * m.qty * m.price;
 
-  // 1. Resumen anual (entradas vs salidas netas en EUR)
+  // 1. Resumen anual: flujo neto por año (EUR), barras desde 0: entradas a la derecha, salidas a la izquierda
   const byYear = {};
-  for (const m of movs) {
-    const y = m.date.slice(0, 4);
-    const val = (m.type === 'sub' ? -1 : 1) * m.qty * m.price;
-    byYear[y] = (byYear[y] || 0) + val;
-  }
+  for (const m of movs) byYear[m.date.slice(0, 4)] = (byYear[m.date.slice(0, 4)] || 0) + flow(m);
   const years = Object.keys(byYear).sort();
   const maxAbs = Math.max(...years.map(y => Math.abs(byYear[y])), 1);
-  const annualHtml = years.map(y => {
-    const v = byYear[y], w = Math.round(Math.abs(v) / maxAbs * 100);
-    return `<div class="mb-2"><div class="flex justify-between text-xs"><span class="num">${y}</span><span class="num ${cls(v)}">${v >= 0 ? '+' : ''}${eur(v)}</span></div>
-      <div class="mt-1 h-2.5 rounded bg-[#11131f]"><div class="h-2.5 rounded" style="width:${w}%;background:${v >= 0 ? '#22c55e' : '#ef4444'}"></div></div></div>`;
-  }).join('');
+  const annualHtml = `<div class="mb-1 flex justify-between text-[11px] text-slate-500"><span>← Salidas netas</span><span>Entradas netas →</span></div>`
+    + years.map(y => {
+      const v = byYear[y], w = Math.abs(v) / maxAbs * 50, txt = `${v >= 0 ? '+' : ''}${eur(v)}`;
+      return `<div class="mb-1.5 flex items-center gap-2 text-xs" data-tip="${esc(`<b>${y}</b><br><span class="num">${txt}</span>`)}">
+        <span class="num w-9 shrink-0">${y}</span>
+        <div class="relative h-5 flex-1"><div class="absolute inset-y-0 w-px bg-[#2d3142]" style="left:50%"></div>
+          <div class="absolute rounded-sm" style="top:2px;bottom:2px;${v >= 0 ? 'left:50%' : 'right:50%'};width:${w}%;background:${v >= 0 ? '#22c55e' : '#ef4444'}"></div></div>
+        <span class="num w-24 shrink-0 text-right ${cls(v)}">${txt}</span></div>`;
+    }).join('');
 
-  // 2. Gráfico acumulativo en el tiempo (EUR neto aportado)
+  // 2. Flujo neto acumulado (EUR) con eje Y y valor al pasar el cursor
   let acc = 0;
-  const pts = movs.map(m => {
-    acc += (m.type === 'sub' ? -1 : 1) * m.qty * m.price;
-    return { t: Date.parse(m.date), date: m.date, v: acc };
-  });
-  const W = 500, H = 160, P = 10, ys = pts.map(p => p.v);
-  const x0 = pts[0].t, x1 = pts.at(-1).t, y0 = Math.min(0, ...ys), y1 = Math.max(0, ...ys);
-  const X = t => P + (t - x0) / (x1 - x0 || 1) * (W - 2 * P);
-  const Y = v => H - P - (v - y0) / (y1 - y0 || 1) * (H - 2 * P);
-  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
-  const cumHtml = `<svg viewBox="0 0 ${W} ${H}" class="w-full"><line x1="${P}" x2="${W - P}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="#2d3142" stroke-dasharray="3 3"/><path d="${d}" fill="none" stroke="#38bdf8" stroke-width="2"/>${pts.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3" fill="#38bdf8"/>`).join('')}</svg>
-    <div class="num mt-1 flex justify-between text-xs text-slate-400"><span>${pts[0].date}</span><span>Acumulado neto: <b class="text-[#e2e8f0]">${eur(acc)}</b></span><span>${pts.at(-1).date}</span></div>`;
+  const pts = movs.map(m => { acc += flow(m); return [Date.parse(m.date), acc]; });
+  const cumHtml = `${axisChart({ series: [{ label: 'Neto aportado', color: '#38bdf8', pts }], kind: 'eur', zero: true })}
+    <div class="num mt-1 text-xs text-slate-400">Acumulado neto: <b class="text-[#e2e8f0]">${eur(acc)}</b></div>`;
 
   return `<div class="space-y-4">
     <div><h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Resumen anual (EUR)</h3>${annualHtml}</div>
@@ -171,7 +164,9 @@ function renderManual(state, view, fund, shares) {
             ${row('Deuda USDT', usd(state.dualDebtBnb))}</tbody></table></div>
         </div>
       </div>
-
+      <div class="card"><h2 class="mb-2 font-semibold">Activos en órdenes abiertas</h2>
+        ${state.openOrders.length ? `<table class="tbl"><tbody>${state.openOrders.map(x => row(`${esc(x.symbol)} <span class="label">${esc(x.where || x.network)} · ${esc(x.custody)}</span>`, qty(x.amount))).join('')}</tbody></table>` : '<p class="label">Sin activos en órdenes abiertas. Añádelos en <code>openOrders</code> de data/manual.js.</p>'}
+        <p class="label mt-2">Suman al patrimonio. Solo los que no aparecen ya como saldo en una wallet o exchange.</p></div>
       <div class="card"><h2 class="mb-2 font-semibold">SKY staking + PSOL staking</h2><table class="tbl"><tbody>
         ${row('SKY en staking (Metamask Ledger)', qty(state.stakingManual.SKY || 0))}
         ${row('PSOL en staking (Phantom)', qty(state.stakingManual.PSOL || 0))}</tbody></table></div>
