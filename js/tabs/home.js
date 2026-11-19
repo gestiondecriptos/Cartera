@@ -1,5 +1,6 @@
 import { usd, pct, fmt, cls, stackedBar, donut, treemap } from '../format.js';
 import { WALLETS } from '../config.js';
+import { axisChart } from '../charts.js';
 import { fundPrice } from '../accounting.js';
 import { stakingData } from './staking.js';
 
@@ -26,7 +27,7 @@ function chart(pts) {
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
   const change = ys[0] ? (ys.at(-1) / ys[0] - 1) * 100 : 0;
   const day = t => new Date(t).toISOString().slice(0, 10);
-  return `<svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Evolución del patrimonio"><path d="${d}" fill="none" stroke="${change >= 0 ? '#22c55e' : '#ef4444'}" stroke-width="2"/></svg>
+  return `${axisChart({ series: [{ label: 'Patrimonio', color: change >= 0 ? '#22c55e' : '#ef4444', pts: pts.map(p => [p.t, p.v]) }], kind: 'usd', time: true })}
     <div class="num mt-1 flex flex-wrap justify-between gap-2 text-xs text-slate-400"><span>${day(x0)}</span><span>mín ${usd(y0)} · máx ${usd(y1)} · <b class="${change < 0 ? 'neg' : 'text-[#22c55e]'}">${pct(change, 2)}</b></span><span>${day(x1)}</span></div>`;
 }
 
@@ -90,12 +91,13 @@ function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) 
   const chgF = (pts.at(-1).fund / f0 - 1) * 100;
   const chgB = b0 && btcPts.length > 1 ? (btcPts.at(-1).btc / b0 - 1) * 100 : null;
   const day = t => new Date(t).toISOString().slice(0, 10);
-  return `
-  <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Participación vs Bitcoin">
-    <path d="${dF}" fill="none" stroke="#22c55e" stroke-width="2.2"/>
-    ${normB.length >= 2 ? `<path d="${dB}" fill="none" stroke="#f7931a" stroke-width="2"/>` : ''}
-    ${normF.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.n).toFixed(1)}" r="2.8" fill="#22c55e"/>`).join('')}
-  </svg>
+  return `${axisChart({
+      series: [
+        { label: 'Participación', color: '#22c55e', pts: pts.map(p => [p.t, (p.fund / f0) * 100, p.fund]) },
+        ...(b0 && btcPts.length >= 2 ? [{ label: 'Bitcoin', color: '#f7931a', pts: btcPts.map(p => [p.t, (p.btc / b0) * 100, p.btc]) }] : []),
+      ],
+      kind: 'idx', rawKind: 'eur',
+    })}
   <div class="num mt-1 flex flex-wrap justify-between gap-2 text-xs text-slate-400">
     <span>${day(x0)}</span>
     <span><i style="display:inline-block;width:.6rem;height:.2rem;background:#22c55e"></i> Partic. ${eur(pts.at(-1).fund)} (<b class="${cls(chgF)}">${pct(chgF, 1)}</b>)${chgB != null ? ` · <i style="display:inline-block;width:.6rem;height:.2rem;background:#f7931a"></i> BTC ${eur(btcPts.at(-1).btc)} (<b class="${cls(chgB)}">${pct(chgB, 1)}</b>)` : ''}</span>
