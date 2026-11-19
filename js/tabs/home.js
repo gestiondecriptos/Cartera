@@ -8,7 +8,9 @@ import { stakingData } from './staking.js';
 let range = '30d', net = '', asset = '', last = null;
 const DAYS = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 };
 const RANGES = ['7d', '30d', '90d', '365d', 'YTD'];
-
+let fvbRange = 'Todo';
+const FVB_DAYS = { '1M': 30, '6M': 182, '1A': 365, '5A': 1826, Todo: 0 };
+const fvbButtons = () => `<div class="mb-2 flex flex-wrap gap-2">${Object.keys(FVB_DAYS).map(r => `<button class="btn ${r === fvbRange ? '' : 'btn-ghost'}" data-fvb="${r}" type="button">${r}</button>`).join('')}</div>`;
 const keyMatch = (k, n, a) => { const [kn, ka] = k.split('|'); return (!n || kn === n) && (!a || ka === a); };
 
 function series(history) {
@@ -70,8 +72,11 @@ function fundVsBtcChart({ state, view, market, history = [], btcEurHist = {} }) 
   const curBtc = market.prices?.BTC?.eur || 0;
   if (curFund > 0) ptsMap.set(new Date().toISOString().slice(0, 10), { t: Date.now(), fund: curFund, btc: curBtc || null });
 
-  const pts = [...ptsMap.values()].sort((a, b) => a.t - b.t);
-  if (pts.length < 2) return '<div class="label p-6">Se necesitan al menos 2 registros de participación para dibujar la comparativa.</div>';
+  const allPts = [...ptsMap.values()].sort((a, b) => a.t - b.t);
+  if (allPts.length < 2) return '<div class="label p-6">Se necesitan al menos 2 registros de participación para dibujar la comparativa.</div>';
+  const cut = FVB_DAYS[fvbRange] ? Date.now() - FVB_DAYS[fvbRange] * 864e5 : 0;
+  const pts = allPts.filter(p => p.t >= cut);
+  if (pts.length < 2) return '<div class="label p-6">No hay suficientes registros en este rango. Prueba con uno más amplio.</div>';
 
   const f0 = pts[0].fund;
   const btcPts = pts.filter(p => p.btc > 0);
@@ -173,7 +178,7 @@ export function render(ctx) {
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
       <div class="card space-y-4"><h2 class="font-semibold">Distribución</h2>${bars}</div>
-      <div class="card"><h2 class="mb-1 font-semibold">Participación vs Bitcoin (EUR, base 100)</h2><p class="label mb-3">Evolución relativa desde el primer registro manual y snapshots diarios.</p>${fundVsBtcChart(ctx)}</div>
+      <div class="card"><h2 class="mb-1 font-semibold">Participación vs Bitcoin (EUR, base 100)</h2><p class="label mb-3">Evolución relativa desde el primer registro manual y snapshots diarios.</p>${fvbButtons()}${fundVsBtcChart(ctx)}</div>
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
       <div class="card"><h2 class="mb-3 font-semibold">Total por red</h2>${donut(pos(b.network))}</div>
@@ -206,7 +211,7 @@ export function render(ctx) {
     el.onmouseleave = () => (tip.style.display = 'none');
     el.onclick = e => showTip(el, e.clientX, e.clientY);
   });
-
+  root.querySelectorAll('[data-fvb]').forEach(el => (el.onclick = () => { fvbRange = el.dataset.fvb; render(last); }));
   root.querySelectorAll('[data-range]').forEach(el => (el.onclick = () => { range = el.dataset.range; render(last); }));
   root.querySelector('#f-net').onchange = e => { net = e.target.value; render(last); };
   root.querySelector('#f-asset').onchange = e => { asset = e.target.value; render(last); };
