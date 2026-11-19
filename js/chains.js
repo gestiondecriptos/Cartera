@@ -126,8 +126,6 @@ async function rpcMany(url, reqs) {
   for (const x of res) if (x && typeof x.result === 'string') out[x.id] = x.result;
   return out;
 }
-const bscCall = (method, params) => post(CHAINS.bsc.rpc, { jsonrpc: '2.0', id: 1, method, params })
-  .then(j => { if (j.error) throw new Error(j.error.message); return j.result; });
 const hexToNum = (hex, dec) => Number(BigInt(hex && hex !== '0x' ? hex : '0x0')) / 10 ** dec;
 export const fetchBsc = () => eachUnit(
     WALLETS.evm.filter(w => !w.nets || w.nets.includes('BSC')).map(w => ({ w, label: `BSC ${short(w.address)}` })),
