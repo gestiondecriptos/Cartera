@@ -137,11 +137,12 @@ export function render(ctx) {
       { label: 'Ledger', value: p(b.custody, 'ledger'), color: '#22c55e' },
       { label: 'Metamask/Rabby', value: p(b.custody, 'metamask'), color: '#f7931a' },
       { label: 'Phantom', value: p(b.custody, 'phantom'), color: '#a78bfa' }]),
-    stackedBar('Colateral vs Pools vs Staking vs Dual vs Libre', [
+    stackedBar('Colateral vs Pools vs Staking vs Dual vs Órdenes vs Libre', [
       { label: 'Colateral', value: p(b.category, 'colateral'), color: '#38bdf8' },
       { label: 'Pools', value: p(b.category, 'pools'), color: '#22c55e' },
       { label: 'Staking', value: p(b.category, 'staking'), color: '#a78bfa' },
       { label: 'Dual Investment', value: p(b.category, 'dual'), color: '#fbbf24' },
+      { label: 'Órdenes abiertas', value: p(b.category, 'ordenes'), color: '#f472b6' },
       { label: 'Libre', value: p(b.category, 'libre'), color: '#64748b' }]),
   ].join('');
 
