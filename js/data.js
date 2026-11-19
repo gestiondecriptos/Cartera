@@ -3,7 +3,8 @@ import { WALLETS, COINGECKO_IDS, APR_SOURCES } from './config.js';
 import { loadChains } from './chains.js';
 import { fetchPools, poolItems } from './trackdefi.js';
 import { fetchPoolsOnchain } from './onchainpools.js';
-import { BTC_USD_FIXED } from './btcfixed.js';
+import * as FIXED from './btcfixed.js';
+const BTC_USD_FIXED = FIXED.BTC_USD_FIXED || {}, EURUSD_FIXED = FIXED.EURUSD_FIXED || {};
 import { MOCK_PRICES, MOCK_EUR_USD } from './mock-data.js';
 
 const API = 'https://mempool.space/api';
