@@ -1,4 +1,4 @@
-import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory, btcFixedPricesText } from './data.js';
+import { loadMarketData, loadBtcLedger, loadHistory, loadStakingApr, loadBtcEurHistory, btcFixedPricesText, fixedBtcHistory } from './data.js';
 import { manualFileText } from './manualtext.js';
 import { discoverEvmTokens } from './chains.js';
 import * as store from './store.js';
@@ -219,6 +219,7 @@ $('#manual-root').addEventListener('click', async e => {
 /* ---------- Arranque ---------- */
 showTab(location.hash.slice(1) || 'inicio');
 loadHistory().then(h => { historyData = h; refresh(); });
+btcEurHist = fixedBtcHistory();   // tabla fija al instante; el último año llega después
 loadBtcEurHistory().then(m => { btcEurHist = m; refresh(); });
 const manualP = store.load();
 loadMarketData(WALLETS.btc, m => { market = m; refresh(); }, manualP).then(m => { market = m; refresh(); });
