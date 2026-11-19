@@ -10,13 +10,13 @@ export const COLORS = ['#38bdf8', '#f7931a', '#22c55e', '#a78bfa', '#fbbf24', '#
 const legend = (parts, total) => parts.map((p, i) =>
   `<span><i style="display:inline-block;width:.6rem;height:.6rem;border-radius:2px;background:${p.color || COLORS[i % 6]}"></i> ${p.label} <b class="num">${pct(p.value / total * 100)}</b></span>`).join('');
 
-/** Barra horizontal al 100%: parts = [{label, value, color?}] */
-export function stackedBar(title, parts) {
+/** Barra horizontal al 100%: parts = [{label, value, color?}] · fmtVal(valor) opcional: texto extra del tooltip */
+export function stackedBar(title, parts, fmtVal = null) {
   const total = parts.reduce((t, p) => t + p.value, 0);
   if (!total) return `<div><div class="mb-1 text-sm">${title}</div><div class="label">Sin datos</div></div>`;
   return `<div><div class="mb-1 text-sm">${title}</div>
     <div class="flex h-6 overflow-hidden rounded bg-[#11131f]">${parts.map((p, i) =>
-      `<div style="width:${p.value / total * 100}%;background:${p.color || COLORS[i % 6]}" title="${p.label}"></div>`).join('')}</div>
+      `<div data-tip="${esc(`<b>${p.label}</b><br><span class="num">${fmtVal ? fmtVal(p.value) + ' · ' : ''}${pct(p.value / total * 100)}</span>`)}" style="width:${p.value / total * 100}%;background:${p.color || COLORS[i % 6]}"></div>`).join('')}</div>
     <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">${legend(parts, total)}</div></div>`;
 }
 
