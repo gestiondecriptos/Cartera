@@ -1,6 +1,9 @@
 import { usd, qty, pct, cls, fmt, stackedBar, short } from '../format.js';
 import { computeDcaTable } from '../accounting.js';
+import { WALLETS } from '../config.js';
 
+// Las direcciones no se muestran: Wallet 1, Wallet 2… según su orden en config.js
+const walletName = a => { const i = WALLETS.btc.indexOf(a); return i < 0 ? 'Wallet' : `Wallet ${i + 1}`; };
 function avgCard({ title, subtitle, avgPrice, curPrice, extraLabel }) {
   const diff = avgPrice ? (curPrice / avgPrice - 1) * 100 : 0;
   const maxRef = Math.max(avgPrice, curPrice, 1);
@@ -53,7 +56,7 @@ export function render({ view, state, market, ledger = [] }) {
   const avg = totalBtc ? priced.reduce((t, r) => t + r.amount * r.price, 0) / totalBtc : 0;
   const ledgerRows = L.map(r => {
     const v = r.price ? (price / r.price - 1) * 100 : null;
-    return `<tr><td class="num" title="${r.address}">${short(r.address)}</td><td class="num">${r.date}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${r.price ? usd(r.price) : '—'}</td><td class="num r ${cls(v)}">${v == null ? '—' : pct(v)}</td></tr>`;
+    return `<tr><td>${walletName(r.address)}</td><td class="num">${r.date}</td><td class="num r">${qty(r.amount)}</td><td class="num r">${r.price ? usd(r.price) : '—'}</td><td class="num r ${cls(v)}">${v == null ? '—' : pct(v)}</td></tr>`;
   }).join('');
 
   const dca = computeDcaTable(state.dca, price);
