@@ -46,18 +46,27 @@ export function parseCgLiq(text) {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('cgliq.mjs')) {
+  // Seguro anti-bloqueo: pase lo que pase, el script termina en menos de 2,5 minutos
+  const guard = setTimeout(() => { console.log('CoinGecko heatmap: tiempo máximo superado.'); process.exit(0); }, 150000);
+  let b = null;
   try {
     const { chromium } = await import('playwright');
-    const b = await chromium.launch();
+    b = await chromium.launch();
     const p = await b.newPage({ viewport: { width: 1300, height: 1000 } });
-    await p.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
+    await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await p.waitForFunction(() => /Shorts above/i.test(document.body.innerText) && !/Loading live data/i.test(document.body.innerText), null, { timeout: 45000 }).catch(() => {});
     await p.waitForTimeout(2500);
     const text = await p.evaluate(() => document.body.innerText);
-    await b.close();
     const o = parseCgLiq(text);
-    console.log('--- texto leído (extracto) ---\n' + (text.slice(Math.max(0, text.search(/Shorts above/i)), 2400) || text.slice(0, 1500)) + '\n--- fin ---');
+    const k = text.search(/Shorts above/i);
+    console.log('--- texto leído (extracto) ---\n' + (k >= 0 ? text.slice(k, k + 2400) : text.slice(0, 1500)) + '\n--- fin ---');
     if (!o) console.log('CoinGecko heatmap: no se pudo leer. Se deja data/cgliq.json como está.');
     else { fs.writeFileSync('data/cgliq.json', JSON.stringify({ updated: new Date().toISOString(), asset: 'BTC', ...o, source: URL }) + '\n'); console.log('CoinGecko heatmap guardado.'); }
-  } catch (e) { console.log('CoinGecko heatmap: error —', e.message); }
+  } catch (e) {
+    console.log('CoinGecko heatmap: error —', e.message);
+  } finally {
+    try { if (b) await b.close(); } catch { /* ya cerrado */ }
+    clearTimeout(guard);
+    process.exit(0);
+  }
 }
