@@ -67,7 +67,7 @@ export function render({ view, state, market, ledger = [] }) {
     const ltvCell = r.ltv == null
       ? '—'
       : Number.isFinite(r.ltv)
-        ? `${fmt(r.ltv)}%`
+        ? `${fmt(r.ltv, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
         : '∞';
     return `<tr><td class="num">${r.month}</td><td class="num r">${usd(r.buyUsd)}</td><td class="num r">${usd(r.debt)}</td><td class="num r">${ltvCell}</td><td class="num r">${qty(r.btc)}</td><td class="num r ${cls(r.valueNoDebt)}">${usd(r.valueNoDebt)}</td><td class="num r">${r.buyPriceEst == null ? '—' : usd(r.buyPriceEst)}</td></tr>`;
   }).join('');
