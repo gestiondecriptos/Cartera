@@ -47,7 +47,7 @@ function halvingZones(hv, athT) {
   }
   return { len, segs, cur: lab(hv.elapsedDays) };
 }
-const ZC = { max: ['#ef4444', 'Zona de máximos'], min: ['#22c55e', 'Zona de mínimos'], up: ['#38bdf8', 'Zona alcista'], down: ['#f59e0b', 'Zona bajista'] };
+const ZC = { max: ['#22c55e', 'Zona de máximos'], min: ['#ef4444', 'Zona de mínimos'], up: ['#38bdf8', 'Zona alcista'], down: ['#f59e0b', 'Zona bajista'] };
 
 function points(d, arr) {
   const from = RANGES[range] === Infinity ? 0 : Date.now() - RANGES[range] * 864e5, out = [];
