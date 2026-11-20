@@ -1,8 +1,8 @@
 import { loadMetrics, halvingInfo } from '../bitview.js';
-import { lineChart, thin, axisChart } from '../charts.js';
+import { lineChart, thin } from '../charts.js';
 import { usd, pct, fmt, cls, esc } from '../format.js';
 
-let st = { status: 'idle' }, range = '4y', etf = null, fng = null, rbw = null, liq = null, cgl = null;
+let st = { status: 'idle' }, range = '4y', etf = null, fng = null, rbw = null, liq = null;
 const DAY = 864e5;
 const RANGES = { '90d': 90, '1y': 365, '4y': 1460, Todo: Infinity };
 const ETF_URL = 'https://axeladlerjr.com/charts/bitcoin-etf-flow-monitor/';
@@ -30,7 +30,6 @@ function loadExtras() {
   loadJson('fng', j => { if (j.cg && Number.isFinite(j.cg.value)) fng = j; });
   loadJson('rainbow', j => { if (j.band && j.index) rbw = j; });
   loadJson('liq', j => { if (Number.isFinite(j.longs5)) liq = j; });
-  loadJson('cgliq', j => { cgl = j; });
 }
 
 /** Zonas del ciclo, en días desde el último halving: máximos 370–540; mínimos 267–406 tras el ATH; entre ambas, alcista o bajista */
@@ -123,51 +122,43 @@ export function render() {
     <div class="label">${d.ath.value ? `máx. ${usd(d.ath.value)} · ${dateEs(d.ath.t)}` : ''}</div></div>`;
 
   const mUsd = v => `${v < 0 ? '−' : '+'}${fmt(Math.abs(v) / 1e6, { maximumFractionDigits: 1 })} M$`;
-  const etfCard = etf ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="font-semibold">ETFs de Bitcoin (EE. UU., spot)</h2><span class="label">datos del ${dateEs(Date.parse(etf.asOf))}</span></div>
-      <div class="mt-2 grid grid-cols-3 gap-3">
-        <div><div class="label">Flujo del día</div><div class="num text-xl ${cls(etf.lastDay)}">${mUsd(etf.lastDay)}</div></div>
-        <div><div class="label">Flujo de la semana</div><div class="num text-xl ${cls(etf.week)}">${mUsd(etf.week)}</div><div class="label">sesiones completas</div></div>
-        <div><div class="label">Precio medio implícito</div><div class="num text-xl">${usd(etf.impliedPrice)}</div><div class="label">flujos netos USD ÷ BTC${L.price ? ` · BTC ${pct((L.price / etf.impliedPrice - 1) * 100, 1)} vs implícito` : ''}</div></div></div></div>`
-    : '<div class="card"><h2 class="font-semibold">ETFs de Bitcoin (EE. UU., spot)</h2><p class="label">Resumen no disponible todavía: lo actualiza el proceso diario de GitHub. El gráfico completo está más abajo.</p></div>';
-
+  const mM = v => `${fmt(v / 1e6, { maximumFractionDigits: 1 })} M$`;
+  const kk = v => (v >= 1000 ? `${fmt(v / 1000, { maximumFractionDigits: 1 })}k` : fmt(v));
+  const lnk = (href, txt) => `<a class="text-[#38bdf8] underline" href="${href}" target="_blank" rel="noopener noreferrer">${txt}</a>`;
   const noData = t => `<div class="card"><h2 class="font-semibold">${t}</h2><p class="label">Sin datos todavía: los rellena el proceso diario de GitHub.</p></div>`;
+
   const cgf = fng && fng.cg;
-  const fngCard = cgf ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="font-semibold">Fear &amp; Greed (CoinGecko)</h2><span class="label">${cgf.asOf || ''}</span></div>
+  const fngCard = cgf ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-x-2"><h2 class="font-semibold">Fear &amp; Greed</h2><span class="label">${cgf.asOf || ''}</span></div>
       ${gaugeSvg(cgf.value)}
       <div class="text-center"><b style="color:${fngColor(cgf.value)}">${FNG_ES[cgf.label] || cgf.label || ''}</b>${cgf.streak ? ` · ${cgf.streak} días seguidos` : ''}</div>
-      <div class="num mt-2 grid grid-cols-3 gap-2 text-center text-xs">${[['Ayer', cgf.yesterday], ['Hace 1 semana', cgf.lastWeek], ['Hace 1 mes', cgf.lastMonth]].map(([k, v]) => `<div><div class="label">${k}</div><b style="color:${v == null ? '#94a3b8' : fngColor(v)}">${v == null ? '—' : v}</b></div>`).join('')}</div></div>` : noData('Fear &amp; Greed (CoinGecko)');
-  const rbwCard = rbw ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="font-semibold">Rainbow Chart</h2><span class="label">${rbw.asOf || ''}</span></div>
+      <div class="num mt-2 grid grid-cols-3 gap-2 text-center text-xs">${[['Ayer', cgf.yesterday], ['1 semana', cgf.lastWeek], ['1 mes', cgf.lastMonth]].map(([k, v]) => `<div><div class="label">${k}</div><b style="color:${v == null ? '#94a3b8' : fngColor(v)}">${v == null ? '—' : v}</b></div>`).join('')}</div>
+      <div class="label mt-2">Índice de CoinGecko · ${lnk('https://www.coingecko.com/en/charts/fear-and-greed-index', 'ver gráfico en CoinGecko')}</div></div>` : noData('Fear &amp; Greed');
+
+  const rbwCard = rbw ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-x-2"><h2 class="font-semibold">Rainbow Chart</h2><span class="label">${rbw.asOf || ''}</span></div>
       <div class="relative mt-6"><div class="absolute text-xs" style="left:${((rbw.index - 0.5) / 9 * 100).toFixed(2)}%;top:-18px;transform:translateX(-50%);color:${RBW[rbw.index - 1][2]}">▼</div>
         <div class="flex h-4 overflow-hidden rounded">${RBW.map(([, es, c], i) => `<div class="flex-1" data-tip="${esc(`<b>${es}</b><br>banda ${i + 1} de 9`)}" style="background:${c};opacity:${i + 1 === rbw.index ? 1 : 0.4}"></div>`).join('')}</div></div>
       <div class="mt-2 text-sm">Banda ${rbw.index} de 9: <b style="color:${RBW[rbw.index - 1][2]}">${RBW[rbw.index - 1][1]}</b></div>
-      <div class="num mt-1 text-xs text-slate-300">BTC ${usd(rbw.price)} · modelo ${usd(rbw.model)} · <b class="${cls(rbw.vsModel)}">${pct(rbw.vsModel, 1)}</b> vs modelo</div>
-      <div class="label mt-1">${rbw.ceiling ? `techo de la banda ${usd(rbw.ceiling)}` : 'sin techo (última banda)'}${rbw.floor ? ` · suelo ${usd(rbw.floor)}` : ''} · bandas ajustadas a la volatilidad de cada ciclo</div></div>` : noData('Rainbow Chart');
+      <div class="num mt-2 space-y-1 text-xs text-slate-300"><div>BTC <b>${usd(rbw.price)}</b></div><div>Modelo <b>${usd(rbw.model)}</b></div><div><b class="${cls(rbw.vsModel)}">${pct(rbw.vsModel, 1)}</b> vs modelo</div></div>
+      <div class="label mt-2">${rbw.ceiling ? `Techo de la banda ${usd(rbw.ceiling)}` : 'Sin techo (última banda)'}${rbw.floor ? ` · suelo ${usd(rbw.floor)}` : ''}</div></div>` : noData('Rainbow Chart');
 
-  const mM = v => `${fmt(v / 1e6, { maximumFractionDigits: 1 })} M$`;
-  const hlCard = liq ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="font-semibold">Liquidaciones en Hyperliquid</h2><span class="label">${liq.asOf || ''}</span></div>
-      <p class="label">Posiciones reales de BTC en Hyperliquid (Axel Adler Jr)${liq.price ? ` · precio ${usd(liq.price)}` : ''}.</p>
-      <div class="mt-2 grid grid-cols-2 gap-3"><div><div class="label">Longs dentro de −5 %</div><div class="num text-xl neg">${mM(liq.longs5)}</div><div class="label">se liquidan por debajo</div></div>
-        <div><div class="label">Shorts dentro de +5 %</div><div class="num text-xl pos">${mM(liq.shorts5)}</div><div class="label">se liquidan por encima</div></div></div>
+  const etfCard = etf ? `<div class="card"><h2 class="font-semibold">ETFs de Bitcoin (EE. UU.)</h2><div class="label">spot · datos del ${dateEs(Date.parse(etf.asOf))}</div>
+      <div class="mt-3 space-y-3">
+        <div><div class="label">Flujo del día</div><div class="num text-xl ${cls(etf.lastDay)}">${mUsd(etf.lastDay)}</div></div>
+        <div><div class="label">Flujo de la semana (sesiones completas)</div><div class="num text-xl ${cls(etf.week)}">${mUsd(etf.week)}</div></div>
+        <div><div class="label">Precio medio implícito</div><div class="num text-xl">${usd(etf.impliedPrice)}</div><div class="label">flujos netos USD ÷ BTC${L.price ? ` · BTC ${pct((L.price / etf.impliedPrice - 1) * 100, 1)} vs implícito` : ''}</div></div></div></div>` : noData('ETFs de Bitcoin (EE. UU.)');
+
+  const hlCard = liq ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-x-2"><h2 class="font-semibold">Liquidaciones Hyperliquid</h2><span class="label">${liq.asOf || ''}</span></div>
+      <div class="label">BTC${liq.price ? ` · precio ${usd(liq.price)}` : ''}</div>
+      <div class="mt-2 grid grid-cols-2 gap-3"><div><div class="label">Longs dentro de −5 %</div><div class="num text-lg neg">${mM(liq.longs5)}</div></div>
+        <div><div class="label">Shorts dentro de +5 %</div><div class="num text-lg pos">${mM(liq.shorts5)}</div></div></div>
       <div class="label mt-3">Los 4 mayores niveles</div>
-      <table class="tbl"><thead><tr><th>Precio</th><th>Distancia</th><th>Lado</th><th class="text-right">Valor</th></tr></thead><tbody>${liq.levels.map(l => `<tr><td class="num">${fmt(l.lo)} – ${fmt(l.hi)} $</td><td class="num ${cls(l.dist)}">${l.dist > 0 ? '+' : ''}${fmt(l.dist)} %</td><td>${l.side === 'Longs' ? 'Longs' : 'Shorts'}</td><td class="num text-right">${mM(l.value)}</td></tr>`).join('')}</tbody></table></div>` : noData('Liquidaciones en Hyperliquid');
-  const r5 = cgl && cgl.row5, cgOk = cgl && (cgl.shortsAbove || cgl.longsBelow || r5);
-  const cgCard = cgOk ? `<div class="card"><div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="font-semibold">Heatmap de liquidaciones (CoinGecko)</h2><span class="label">${(cgl.updated || '').slice(0, 10)}</span></div>
-      <p class="label">BTC en Binance, Bybit y Gate: estimación de CoinGecko. Son valores relativos de apalancamiento, no dólares.</p>
-      <div class="mt-2 grid grid-cols-2 gap-3"><div><div class="label">Shorts arriba${r5 ? ' (+5 %)' : ''}</div><div class="num text-xl pos">${r5 ? r5.shorts : cgl.shortsAbove || '—'}</div><div class="label">${r5 ? `si sube a ${r5.risesTo}` : 'total sobre el precio'}</div></div>
-        <div><div class="label">Longs abajo${r5 ? ' (−5 %)' : ''}</div><div class="num text-xl neg">${r5 ? r5.longs : cgl.longsBelow || '—'}</div><div class="label">${r5 ? `si cae a ${r5.fallsTo}` : 'total bajo el precio'}</div></div></div>
-      ${cgl.top ? `<div class="mt-3 text-sm">Mayor acumulación: <b>${cgl.top.side}</b> entre ${cgl.top.from || 'el precio actual'} y ${cgl.top.to} <span class="label">(tramo hasta ±${esc(String(cgl.top.move || '').replace(/[±+-]/g, ''))})</span></div>` : ''}
-      <div class="label mt-2">Totales: ${cgl.shortsAbove ? `shorts arriba ${esc(cgl.shortsAbove)}` : ''}${cgl.longsBelow ? ` · longs abajo ${esc(cgl.longsBelow)}` : ''}. <a class="text-[#38bdf8] underline" href="https://www.coingecko.com/en/charts/liquidation-heatmap" target="_blank" rel="noopener noreferrer">Abrir en CoinGecko</a></div></div>`
-    : `<div class="card"><h2 class="font-semibold">Heatmap de liquidaciones (CoinGecko)</h2><p class="label">Resumen no disponible todavía: CoinGecko dibuja esta página con JavaScript y la lectura automática aún no ha devuelto datos. <a class="text-[#38bdf8] underline" href="https://www.coingecko.com/en/charts/liquidation-heatmap" target="_blank" rel="noopener noreferrer">Abrir en CoinGecko</a></p></div>`;
-
-  const from = RANGES[range] === Infinity ? 0 : Date.now() - RANGES[range] * 864e5;
-  const fp = arr => thin((arr || []).map(([dd2, v]) => [Date.parse(dd2), v]).filter(p => Number.isFinite(p[0]) && p[0] >= from));
-  const fngChart = fng ? card('Fear &amp; Greed Index', 'Verde: índice de CoinGecko, que se va guardando día a día desde que se activó (su histórico completo es de pago). Gris: índice de alternative.me, otra metodología, con histórico desde 2018.',
-    axisChart({ series: [{ label: 'CoinGecko', color: '#22c55e', pts: fp(fng.hist) }, { label: 'alternative.me', color: '#64748b', pts: fp(fng.alt) }], kind: 'idx', yMin: 0, yMax: 100, height: 200 })) : '';
+      <table class="tbl text-xs"><thead><tr><th>Nivel</th><th>Dist.</th><th class="text-right">Valor</th></tr></thead><tbody>${liq.levels.map(l => `<tr><td class="num"><span class="${l.side === 'Longs' ? 'neg' : 'pos'}">${l.side === 'Longs' ? 'L' : 'S'}</span> ${kk(l.lo)}–${kk(l.hi)}</td><td class="num ${cls(l.dist)}">${l.dist > 0 ? '+' : ''}${fmt(l.dist)} %</td><td class="num text-right">${mM(l.value)}</td></tr>`).join('')}</tbody></table>
+      <div class="label mt-1">L = longs · S = shorts</div>
+      <div class="label mt-2">${lnk('https://axeladlerjr.com/charts/bitcoin-liquidation-map/', 'Mapa en Axel Adler Jr')} · ${lnk('https://www.coingecko.com/en/charts/liquidation-heatmap', 'Heatmap en CoinGecko')}</div></div>` : noData('Liquidaciones Hyperliquid');
   root.innerHTML = `
     <div class="flex flex-wrap items-center gap-2"><h2 class="mr-auto font-semibold">RESUMEN</h2>
       ${Object.keys(RANGES).map(r => `<button class="btn ${r === range ? '' : 'btn-ghost'}" data-mrange="${r}" type="button">${r}</button>`).join('')}</div>
     ${d.errors.length ? `<p class="neg text-sm">No se pudo leer: ${d.errors.join(', ')}.</p>` : ''}
-    ${etfCard}
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
       ${stat('MVRV', L.mvrv ? fmt(L.mvrv, { maximumFractionDigits: 2 }) : '—', 'precio ÷ precio realizado', '', S.mvrv)}
       ${stat('Precio realizado', L.realized ? usd(L.realized) : '—', 'coste medio on-chain', '', S.realized)}
@@ -177,27 +168,22 @@ export function render() {
     </div>
     <p class="label">Verde = zona de compra · Rojo = zona de venta.</p>
     ${card('Ciclo de halvings', 'Cada 210.000 bloques (la fecha del próximo es una estimación a 10 min por bloque). Franja de color: zonas del ciclo según días desde el halving (máximos 370–540) y desde el máximo histórico (mínimos 267–406).', halving)}
-    <div class="grid gap-4 lg:grid-cols-2">${fngCard}${rbwCard}</div>
-    <div class="grid gap-4 lg:grid-cols-2">${cgCard}${hlCard}</div>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">${fngCard}${rbwCard}${etfCard}${hlCard}</div>
     ${card('Precio y precio realizado', 'El precio realizado es el coste medio de todas las monedas en su último movimiento.', has(d.realized)
-      ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
+      ? lineChart({ log: true, kind: 'usd', series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
     ${card('MVRV', 'Precio de mercado ÷ precio realizado. Por debajo de 1, el mercado cotiza bajo el coste medio on-chain.', has(d.mvrv)
-      ? lineChart({ series: [{ label: 'MVRV', color: '#22c55e', pts: points(d, d.mvrv) }], lines: [{ y: 1, label: '1,0' }], yfmt: v => fmt(v, { maximumFractionDigits: 2 }) }) : unavailable)}
+      ? lineChart({ kind: 'dec2', series: [{ label: 'MVRV', color: '#22c55e', pts: points(d, d.mvrv) }], lines: [{ y: 1, label: '1,0' }], yfmt: v => fmt(v, { maximumFractionDigits: 2 }) }) : unavailable)}
     ${card('Media móvil de 200 semanas', 'Media de los últimos 1.400 días de precio: soporte histórico de largo plazo.', has(d.ma200)
-      ? lineChart({ log: true, series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Media 200 semanas', color: '#a78bfa', pts: points(d, d.ma200) }] }) : unavailable)}
+      ? lineChart({ log: true, kind: 'usd', series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Media 200 semanas', color: '#a78bfa', pts: points(d, d.ma200) }] }) : unavailable)}
     ${card('RSI diario de 14 días', 'Calculado en tu navegador con los precios de cierre diarios (método de Wilder).', has(d.rsi)
       ? lineChart({ domain: [0, 100], series: [{ label: 'RSI 14', color: '#fbbf24', pts: points(d, d.rsi) }], lines: [{ y: 70, label: '70' }, { y: 30, label: '30' }], height: 180, yfmt: v => fmt(v, { maximumFractionDigits: 0 }) }) : unavailable)}
-    ${fngChart}
     ${card('Rainbow Chart de Bitcoin', 'Gráfico de Axel Adler Jr, incrustado desde su web. Nueve bandas de valoración respecto a la tendencia de largo plazo.', `
       <iframe src="https://axeladlerjr.com/charts/bitcoin-rainbow-chart/embed.html" width="100%" height="480" style="border:0" loading="lazy" title="Bitcoin Rainbow Chart"></iframe>
       <p class="label mt-2">Fuente: <a class="text-[#38bdf8] underline" href="https://axeladlerjr.com/charts/bitcoin-rainbow-chart/" target="_blank" rel="noopener noreferrer">Bitcoin Rainbow Chart</a> (axeladlerjr.com).</p>`)}
-    ${card('Mapa de liquidaciones de Bitcoin (Hyperliquid)', 'Gráfico de Axel Adler Jr con posiciones reales de Hyperliquid, incrustado desde su web.', `
-      <iframe src="https://axeladlerjr.com/charts/bitcoin-liquidation-map/embed.html" width="100%" height="640" style="border:0" loading="lazy" title="Bitcoin Liquidation Map"></iframe>
-      <p class="label mt-2">Fuente: <a class="text-[#38bdf8] underline" href="https://axeladlerjr.com/charts/bitcoin-liquidation-map/" target="_blank" rel="noopener noreferrer">Bitcoin Liquidation Map</a> (axeladlerjr.com). Heatmap de CoinGecko: <a class="text-[#38bdf8] underline" href="https://www.coingecko.com/en/charts/liquidation-heatmap" target="_blank" rel="noopener noreferrer">abrir en CoinGecko</a>.</p>`)}
     ${card('Flujos netos de ETFs de Bitcoin', 'Gráfico de Axel Adler Jr, incrustado desde su web.', `
       <iframe src="${ETF_EMBED}" width="100%" height="640" style="border:0" loading="lazy" title="Bitcoin ETF Flows"></iframe>
       <p class="label mt-2">Fuente: <a class="text-[#38bdf8] underline" href="${ETF_URL}" target="_blank" rel="noopener noreferrer">Bitcoin ETF Flows</a> (axeladlerjr.com).</p>`)}
-    <p class="label">Datos on-chain: Bitview (bitview.space), licencia CC BY 4.0. Gráficos ETF, Rainbow y liquidaciones: axeladlerjr.com. Fear & Greed y heatmap: CoinGecko; Fear & Greed histórico: alternative.me. MVRV, media de 200 semanas y RSI se calculan localmente.</p>`;
+    <p class="label">Datos on-chain: Bitview (bitview.space), licencia CC BY 4.0. Gráficos ETF y Rainbow, y liquidaciones de Hyperliquid: axeladlerjr.com. Fear & Greed: CoinGecko. MVRV, media de 200 semanas y RSI se calculan localmente.</p>`;
 
   root.querySelectorAll('[data-mrange]').forEach(el => (el.onclick = () => { range = el.dataset.mrange; render(); }));
 }
