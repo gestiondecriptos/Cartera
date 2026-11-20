@@ -1,5 +1,5 @@
 // Datos extra de la pestaña Métricas, leídos en GitHub Actions (el navegador no puede leer estas webs por CORS):
-//  · Fear & Greed de CoinGecko (valor actual + histórico propio acumulado) y, como contexto, alternative.me (desde 2018)
+//  · Fear & Greed de CoinGecko (valor actual + histórico propio acumulado)
 //  · Rainbow Chart de Axel Adler Jr · Liquidaciones de Hyperliquid (mapa de Axel Adler Jr)
 // Cada bloque es independiente: si uno falla se deja su archivo como está y no se da error.
 import fs from 'node:fs';
@@ -95,12 +95,6 @@ async function runFng() {
   let cg = null;
   try { cg = parseFng(await get('https://www.coingecko.com/en/charts/fear-and-greed-index')); } catch (e) { console.log('F&G página:', e.message); }
   if (!cg) { try { cg = parseGlobalFng(await get('https://api.coingecko.com/api/v3/global', true)); } catch (e) { console.log('F&G /global:', e.message); } }
-  let alt = prev.alt || [];
-  try {
-    const j = await get('https://api.alternative.me/fng/?limit=0&format=json', true);
-    const a = (j.data || []).map(x => [new Date(+x.timestamp * 1000).toISOString().slice(0, 10), +x.value]).filter(x => x[1] >= 0 && x[1] <= 100).sort((p, q) => (p[0] < q[0] ? -1 : 1));
-    if (a.length > 100) alt = a;
-  } catch (e) { console.log('F&G alternative.me:', e.message); }
   if (!cg && !prev.cg) { console.log('F&G: sin datos, no se escribe nada.'); return; }
   const today = new Date().toISOString().slice(0, 10), ago = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
   const hist = prev.hist || [];
@@ -111,8 +105,8 @@ async function runFng() {
     if (i >= 0) hist[i][1] = cg.value; else hist.push([today, cg.value]);
   }
   hist.sort((p, q) => (p[0] < q[0] ? -1 : 1));
-  save('data/fng.json', { updated: new Date().toISOString(), cg: cg ? { ...cg, asOf: today } : prev.cg, hist, alt });
-  console.log('F&G guardado:', cg, '· histórico propio:', hist.length, '· alternative.me:', alt.length);
+  save('data/fng.json', { updated: new Date().toISOString(), cg: cg ? { ...cg, asOf: today } : prev.cg, hist });
+  console.log('F&G guardado:', cg, '· histórico propio:', hist.length);
 }
 async function runPage(url, parse, file, name) {
   try {
