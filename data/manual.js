@@ -84,16 +84,16 @@ export const MANUAL = {
   // 5) Estrategia DCA con BTC como colateral: una línea por compra. La ÚLTIMA línea es la que cuenta
   //    para la deuda del patrimonio (el BTC se lee solo de aBnbBTCB en BSC).
   dca: [
-    { month: '2026-06', buyUsd: 1080.77, debt: 0, ltv: 0, btc: 0.0174318 },
-    { month: '2026-07', buyUsd: 59.64, debt: 59.64, ltv: 5, btc: 0.0184318 },
-    { month: '2026-08', buyUsd: 77.79, debt: 137.43, ltv: 12, btc: 0.0194318 },
-    { month: '2026-09', buyUsd: 77, debt: 214.43, ltv: 19, btc: 0.0204318 },
-    { month: '2026-10', buyUsd: 82.92, debt: 297.35, ltv: 27, btc: 0.0214318 },
-    { month: '2026-10', buyUsd: 80, debt: 377.35, ltv: 35, btc: 0.0224318 },
-    { month: '2026-11', buyUsd: 76.70, debt: 454.05, ltv: 43, btc: 0.02343180 },
-    { month: '2026-11', buyUsd: 73.30, debt: 527.35, ltv: 50, btc: 0.02443180 },
-    { month: '2026-11', buyUsd: 68.50, debt: 595.85, ltv: 57, btc: 0.02543180 },
-    { month: '2026-11', buyUsd: 64.27, debt: 660.12, ltv: 63, btc: 0.02643180 },
+    { month: '2026-06', buyUsd: 1080.77, debt: 0, btc: 0.0174318 },
+    { month: '2026-07', buyUsd: 59.64, debt: 59.64, btc: 0.0184318 },
+    { month: '2026-08', buyUsd: 77.79, debt: 137.43, btc: 0.0194318 },
+    { month: '2026-09', buyUsd: 77, debt: 214.43, btc: 0.0204318 },
+    { month: '2026-10', buyUsd: 82.92, debt: 297.35, btc: 0.0214318 },
+    { month: '2026-10', buyUsd: 80, debt: 377.35, btc: 0.0224318 },
+    { month: '2026-11', buyUsd: 76.70, debt: 454.05, btc: 0.02343180 },
+    { month: '2026-11', buyUsd: 73.30, debt: 527.35, btc: 0.02443180 },
+    { month: '2026-11', buyUsd: 68.50, debt: 595.85, btc: 0.02543180 },
+    { month: '2026-11', buyUsd: 64.27, debt: 660.12, btc: 0.02643180 },
   ],
   // 7) Activos manuales en otras redes o sitios (p. ej. Base): una línea por activo.
   //    custody: 'ledger' | 'metamask' | 'phantom' | 'exchange'. Para una deuda usa el prefijo variableDebt (ej. 'variableDebtUSDC').
