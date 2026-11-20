@@ -108,11 +108,19 @@ export function fundPrice(totalUsd, eurUsd, shares) {
  *  buyPriceEst  = Compra (USD) × 1000 (se omite en la primera fila, junio)
  */
 export function computeDcaTable(rows, btcPrice) {
-  return rows.map((r, i) => ({
-    ...r,
-    valueNoDebt: r.btc * btcPrice - r.debt,
-    buyPriceEst: i === 0 ? null : r.buyUsd * 1000,
-  }));
+  return rows.map((r, i) => {
+    const valueNoDebt = r.btc * btcPrice - r.debt;
+    const ltv = valueNoDebt > 0
+      ? (r.debt / valueNoDebt) * 100
+      : (r.debt > 0 ? Infinity : 0);
+
+    return {
+      ...r,
+      valueNoDebt,
+      ltv,
+      buyPriceEst: i === 0 ? null : r.buyUsd * 1000,
+    };
+  });
 }
 
 /**
