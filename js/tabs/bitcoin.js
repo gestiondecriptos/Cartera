@@ -63,7 +63,14 @@ export function render({ view, state, market, ledger = [] }) {
   const dcaEstPrices = dca.map(r => r.buyPriceEst).filter(v => Number.isFinite(v) && v > 0);
   const dcaAvg = dcaEstPrices.length ? dcaEstPrices.reduce((t, v) => t + v, 0) / dcaEstPrices.length : 0;
   const dcaLastBtc = dca.at(-1)?.btc || 0;
-  const dcaRows = dca.map(r => `<tr><td class="num">${r.month}</td><td class="num r">${usd(r.buyUsd)}</td><td class="num r">${usd(r.debt)}</td><td class="num r">${fmt(r.ltv)}%</td><td class="num r">${qty(r.btc)}</td><td class="num r ${cls(r.valueNoDebt)}">${usd(r.valueNoDebt)}</td><td class="num r">${r.buyPriceEst == null ? '—' : usd(r.buyPriceEst)}</td></tr>`).join('');
+  const dcaRows = dca.map(r => {
+    const ltvCell = r.ltv == null
+      ? '—'
+      : Number.isFinite(r.ltv)
+        ? `${fmt(r.ltv)}%`
+        : '∞';
+    return `<tr><td class="num">${r.month}</td><td class="num r">${usd(r.buyUsd)}</td><td class="num r">${usd(r.debt)}</td><td class="num r">${ltvCell}</td><td class="num r">${qty(r.btc)}</td><td class="num r ${cls(r.valueNoDebt)}">${usd(r.valueNoDebt)}</td><td class="num r">${r.buyPriceEst == null ? '—' : usd(r.buyPriceEst)}</td></tr>`;
+  }).join('');
 
   document.getElementById('bitcoin-root').innerHTML = `
     <div class="card space-y-4"><h2 class="font-semibold">Distribución de tu BTC</h2>${bars}</div>
