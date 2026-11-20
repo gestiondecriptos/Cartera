@@ -34,16 +34,6 @@ jobs:
         continue-on-error: true
         timeout-minutes: 3
         run: node scripts/extra.mjs
-      - name: Instalar navegador (para el heatmap de CoinGecko)
-        continue-on-error: true
-        timeout-minutes: 8
-        run: |
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
-      - name: Leer heatmap de CoinGecko
-        continue-on-error: true
-        timeout-minutes: 4
-        run: node scripts/cgliq.mjs
       - name: Calcular y guardar el snapshot
         env:
           INCLUDE_PARTIAL: ${{ inputs.include_partial }}
