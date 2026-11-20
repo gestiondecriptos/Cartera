@@ -62,9 +62,9 @@ function niceTicks(lo, hi, n = 5) {
 
 /**
  * series: [{ label, color, pts: [[tiempoMs, valor, valorOriginal?], ...] }]
- * zero: incluir siempre el 0 en el eje Y · kind: 'usd' | 'eur' | 'idx' (formato del valor) · rawKind: formato del 3.er dato (opcional) · time: mostrar hora en el tooltip
+ * zero / yMin / yMax: incluir siempre el 0 (o esos valores) en el eje Y · kind: 'usd' | 'eur' | 'idx' (formato del valor) · rawKind: formato del 3.er dato (opcional) · time: mostrar hora en el tooltip
  */
-export function axisChart({ series, kind = 'usd', rawKind = null, time = false, height = 220, zero = false }) {
+export function axisChart({ series, kind = 'usd', rawKind = null, time = false, height = 220, zero = false, yMin = null, yMax = null }) {
   const S = series.map(s => ({ ...s, pts: s.pts.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1])) })).filter(s => s.pts.length);
   const all = S.flatMap(s => s.pts);
   if (all.length < 2) return '<div class="label p-6">Sin datos disponibles para este gráfico.</div>';
@@ -73,6 +73,8 @@ export function axisChart({ series, kind = 'usd', rawKind = null, time = false, 
   let t0 = Infinity, t1 = -Infinity, lo = Infinity, hi = -Infinity;
   for (const p of all) { t0 = Math.min(t0, p[0]); t1 = Math.max(t1, p[0]); lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }
   if (zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (yMin != null) lo = Math.min(lo, yMin);
+  if (yMax != null) hi = Math.max(hi, yMax);
   const ticks = niceTicks(lo, hi), y0 = ticks[0], y1 = ticks.at(-1);
   const X = t => PL + (t - t0) / (t1 - t0 || 1) * (W - PL - PR);
   const Y = v => H - PB - (v - y0) / (y1 - y0 || 1) * (H - PT - PB);
