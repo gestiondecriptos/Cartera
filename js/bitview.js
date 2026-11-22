@@ -45,7 +45,7 @@ export function rsi(vals, n = 14) {
   return out;
 }
 
-const HALVING_DATES = { 1: '2012-11-28', 2: '2016-07-09', 3: '2020-05-11', 4: '2024-04-20' };
+export const HALVING_DATES = { 1: '2012-11-28', 2: '2016-07-09', 3: '2020-05-11', 4: '2024-04-20' };
 /** Ciclo de halvings a partir de la altura de bloque actual (cada 210.000 bloques) */
 export function halvingInfo(tip, now = Date.now()) {
   const epoch = Math.floor(tip / 210000), prevH = epoch * 210000, nextH = prevH + 210000;
