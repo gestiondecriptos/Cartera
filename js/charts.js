@@ -162,6 +162,7 @@ export function initChartTips() {
   };
   const onMove = e => {
     const t = e.target instanceof Element ? e.target : null;
+    if (t && t.closest('svg.sp')) return;   // la espiral gestiona su propio tooltip (spiral.js)
     const svg = t && t.closest('svg.ct');
     if (svg) { chartTip(svg, e); return; }
     const el = t && t.closest('[data-tip]');
