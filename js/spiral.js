@@ -35,8 +35,10 @@ function build(d) {
   let last = n - 1; while (last > first && !(P[last] > 0)) last--;
   const Hs = [null, ...Object.values(HALVING_DATES).map(s => Date.parse(s))];   // Hs[1..4]
   const ix = t => Math.max(0, Math.min(n, Math.round((t - T[0]) / DAY)));
-  const argmax = (a, b) => { let m = -1; for (let i = Math.max(a, first); i < Math.min(b, last + 1); i++) if (P[i] > 0 && (m < 0 || P[i] > P[m])) m = i; return m; };
-  const argmin = (a, b) => { let m = -1; for (let i = Math.max(a, first); i < Math.min(b, last + 1); i++) if (P[i] > 0 && (m < 0 || P[i] < P[m])) m = i; return m; };
+  const Hh = i => { const v = d.high && d.high[i]; return v > P[i] ? v : P[i]; };                      // máximo del día (o el cierre si no hay)
+  const argmax = (a, b) => { let m = -1; for (let i = Math.max(a, first); i < Math.min(b, last + 1); i++) if (P[i] > 0 && (m < 0 || Hh(i) > Hh(m))) m = i; return m; };
+  const Lw = i => { const v = d.low && d.low[i]; return v > 0 && v < P[i] ? v : P[i]; };          // mínimo del día (o el cierre si no hay)
+  const argmin = (a, b) => { let m = -1; for (let i = Math.max(a, first); i < Math.min(b, last + 1); i++) if (P[i] > 0 && (m < 0 || Lw(i) < Lw(m))) m = i; return m; };
   const near = t => { let i = Math.min(last, Math.max(first, ix(t))); for (let k = 0; k < 10 && !(P[i] > 0); k++) i = Math.min(last, i + 1); return i; };
 
   // Máximo de cada ciclo: 0 = previo al 1.er halving; 1..3 = máximo en los 730 días tras el halving; 4 = ATH actual (como la tarjeta)
@@ -54,18 +56,18 @@ function build(d) {
 
   // Marcas
   const marks = [];
-  const mk = (kind, label, i) => { const [x, y] = polar(T[i], P[i]); marks.push({ kind, label, x, y, t: T[i], p: P[i], z: zoneFor(T[i]) }); };
+  const mk = (kind, label, i, p = P[i]) => { const [x, y] = polar(T[i], p); marks.push({ kind, label, x, y, t: T[i], p, z: zoneFor(T[i]) }); };
   for (let k = 1; k <= 4; k++) if (Hs[k] <= T[last]) mk('h', `Halving ${k}.º`, near(Hs[k]));
   for (let c = 0; c <= 4; c++) {
     if (aI[c] < 0) continue;
     const end = c < 4 ? aI[c + 1] : last + 1;
     if (c === 4 && T[last] - T[aI[4]] < 267 * DAY) continue;                    // aún no empezó la zona de mínimos
     const m = argmin(aI[c] + 1, end);
-    if (m >= 0) mk('l', c === 4 ? 'Mínimo desde el máximo (ciclo sin cerrar)' : 'Mínimo de ciclo', m);
+    if (m >= 0) mk('l', (c === 4 ? 'Mínimo desde el máximo (ciclo sin cerrar)' : 'Mínimo de ciclo') + (Lw(m) < P[m] ? ' · mín. del día' : ''), m, Lw(m));
   }
-  let run = 0; const byMonth = new Map();                                       // máximos históricos: el más alto de cada mes
-  for (let i = first; i <= last; i++) if (P[i] > run) { run = P[i]; byMonth.set(new Date(T[i]).toISOString().slice(0, 7), i); }
-  for (const i of byMonth.values()) mk('a', 'Máximo histórico', i);
+  let run = 0; const byMonth = new Map();                                       // máximos históricos (intradía): el más alto de cada mes
+  for (let i = first; i <= last; i++) if (Hh(i) > run) { run = Hh(i); byMonth.set(new Date(T[i]).toISOString().slice(0, 7), i); }
+  for (const i of byMonth.values()) mk('a', 'Máximo histórico' + (Hh(i) > P[i] ? ' · máx. del día' : ''), i, Hh(i));
 
   return { line, marks, Hs, aT: aI.map(i => (i >= 0 ? T[i] : null)), zoneFor, cyc, lastPt: line.at(-1) };
 }
