@@ -79,6 +79,15 @@ async function fetchDailyOrSearch(name, query, re) {
   }
 }
 
+// Máximos y mínimos diarios exactos de un exchange (Binance, BTC/USDT, sin clave): cubre ~2,7 años, es decir, el ciclo actual
+async function fetchBinanceOhlc() {
+  const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000', { signal: AbortSignal.timeout(10000) });
+  if (!r.ok) throw new Error(`Binance ${r.status}`);
+  const k = await r.json();
+  if (!Array.isArray(k) || !k.length) throw new Error('Binance: sin datos');
+  return new Map(k.map(x => [Math.floor(x[0] / DAY) * DAY, { high: +x[2], low: +x[3] }]));
+}
+
 const maxOf = a => a.reduce((m, x) => (x != null && x > m ? x : m), 0);
 const scale = (s, cents) => ({ ...s, v: s.v.map(x => (x == null ? null : cents ? x / 100 : x)) });
 
@@ -94,10 +103,13 @@ async function fetchTip() {
 }
 
 export async function loadMetrics() {
-  const [p, r, tip] = await Promise.allSettled([
+  const [p, r, tip, lw, bn, hw] = await Promise.allSettled([
     fetchDailyOrSearch('price_close', 'price close', /(^|_)price_close$/),
     fetchDailyOrSearch('realized_price', 'realized price', /^realized_price$|(^|_)realized_price$/),
     fetchTip(),
+    fetchDailyOrSearch('price_low', 'price low', /(^|_)price_low$/),
+    fetchBinanceOhlc(),
+    fetchDailyOrSearch('price_high', 'price high', /(^|_)price_high$/),
   ]);
   if (p.status === 'rejected') throw new Error(`No se pudo leer el precio histórico de Bitview (${p.reason.message}).`);
   const errors = [];
@@ -113,17 +125,34 @@ export async function loadMetrics() {
     realized = t.map(x => map.get(x) ?? null);
   } else errors.push('precio realizado y MVRV');
 
+  // Máximos y mínimos diarios (espiral y ATH): Bitview y, donde hay, Binance encima (más exacto)
+  const fromBitview = res => {
+    if (res.status !== 'fulfilled') return t.map(() => null);
+    const cents = /cent/i.test(res.value.type) || (priceCents && !/dollar/i.test(res.value.type));
+    const sc = scale(res.value, cents), map = new Map(sc.t.map((x, i) => [x, sc.v[i]]));
+    return t.map(x => map.get(x) ?? null);
+  };
+  let low = fromBitview(lw), high = fromBitview(hw);
+  if (bn.status === 'fulfilled') {
+    low = low.map((v, i) => (bn.value.has(t[i]) ? bn.value.get(t[i]).low : v));
+    high = high.map((v, i) => (bn.value.has(t[i]) ? bn.value.get(t[i]).high : v));
+  }
+  low = low.map((v, i) => (v > 0 && pv[i] > 0 && v >= pv[i] * 0.5 && v <= pv[i] * 1.02 ? v : null));      // descarta valores absurdos
+  high = high.map((v, i) => (v > 0 && pv[i] > 0 && v >= pv[i] * 0.98 && v <= pv[i] * 2 ? v : null));
+  if (lw.status === 'rejected' && bn.status === 'rejected') errors.push('mínimos diarios (se usan cierres)');
+  if (hw.status === 'rejected' && bn.status === 'rejected') errors.push('máximos diarios (se usan cierres)');
+
   const mvrv = pv.map((v, i) => (v != null && realized[i] > 0 ? v / realized[i] : null));
   const ma200 = sma(pv, WEEKS200);
   const rsi14 = rsi(pv, 14);
 
   let ath = { value: 0, t: 0 };
-  pv.forEach((v, i) => { if (v != null && v > ath.value) ath = { value: v, t: t[i] }; });
+  pv.forEach((v, i) => { const top = high[i] > v ? high[i] : v; if (v != null && top > ath.value) ath = { value: top, t: t[i] }; });   // ATH intradía
   const lastIdx = pv.reduce((m, v, i) => (v != null ? i : m), -1);
   const at = a => (lastIdx >= 0 ? a[lastIdx] : null);
 
   return {
-    t, price: pv, realized, mvrv, ma200, rsi: rsi14, ath, errors,
+    t, price: pv, low, high, realized, mvrv, ma200, rsi: rsi14, ath, errors,
     last: { t: t[lastIdx], price: at(pv), realized: at(realized), mvrv: at(mvrv), ma200: at(ma200), rsi: at(rsi14) },
     tip: tip.status === 'fulfilled' ? tip.value : null,
   };
