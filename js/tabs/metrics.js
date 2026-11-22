@@ -1,5 +1,6 @@
 import { loadMetrics, halvingInfo } from '../bitview.js';
 import { lineChart, thin } from '../charts.js';
+import { spiralChart, bindSpirals } from '../spiral.js';
 import { usd, pct, fmt, cls, esc } from '../format.js';
 
 let st = { status: 'idle' }, range = '4y', etf = null, fng = null, rbw = null, liq = null;
@@ -97,6 +98,7 @@ export function render() {
   const stat = (label, value, sub = '', tone = '', s = '') => { const c = SIG[s]; return `<div class="card" ${c ? `style="border-color:${c[0]};background:${c[0]}1f"` : ''}><div class="label">${label}${c ? ` <b style="color:${c[0]}">· ${c[1]}</b>` : ''}</div><div class="num text-xl ${tone}" ${c ? `style="color:${c[0]}"` : ''}>${value}</div><div class="label">${sub}</div></div>`; };
   const card = (title, note, body) => `<div class="card"><h2 class="font-semibold">${title}</h2><p class="label mb-3">${note}</p>${body}</div>`;
 
+  const sp = has(d.price) ? spiralChart(d) : null;
   const hv = d.tip ? halvingInfo(d.tip) : null;
   let zoneHtml = '';
   if (hv) {
@@ -167,8 +169,12 @@ export function render() {
       ${athCard}
     </div>
     <p class="label">Verde = zona de compra · Rojo = zona de venta.</p>
-    ${card('Ciclo de halvings', 'Cada 210.000 bloques (la fecha del próximo es una estimación a 10 min por bloque). Franja de color: zonas del ciclo según días desde el halving (máximos 370–540) y desde el máximo histórico (mínimos 267–406).', halving)}
+    <div class="grid gap-4 lg:grid-cols-5">
+      <div class="lg:col-span-2 [&>.card]:h-full">${card('Espiral de Bitcoin', 'Precio desde 2010, una vuelta cada 4 años. El halo marca la zona del ciclo.', sp ? sp.svg + sp.legend : unavailable)}</div>
+      <div class="lg:col-span-3 [&>.card]:h-full">${card('Ciclo de halvings', 'Cada 210.000 bloques (la fecha del próximo es una estimación a 10 min por bloque). Franja de color: zonas del ciclo según días desde el halving (máximos 370–540) y desde el máximo histórico (mínimos 267–406).', halving)}</div>
+    </div>
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">${fngCard}${rbwCard}${etfCard}${hlCard}</div>
+    ${card('Espiral del precio de Bitcoin', 'Todo el histórico en una sola imagen: cada vuelta son 4 años y la distancia al centro es el precio (escala logarítmica). Puntos verdes = halvings, rojos = mínimos de ciclo, blancos = máximos históricos. El halo usa las zonas de la tarjeta «Ciclo de halvings». Se actualiza con el resto de métricas.', sp ? `<div class="mx-auto" style="max-width:780px">${sp.svg}${sp.legend}</div>` : unavailable)}
     ${card('Precio y precio realizado', 'El precio realizado es el coste medio de todas las monedas en su último movimiento.', has(d.realized)
       ? lineChart({ log: true, kind: 'usd', series: [{ label: 'Precio BTC', color: '#f7931a', pts: points(d, d.price) }, { label: 'Precio realizado', color: '#38bdf8', pts: points(d, d.realized) }] }) : unavailable)}
     ${card('MVRV', 'Precio de mercado ÷ precio realizado. Por debajo de 1, el mercado cotiza bajo el coste medio on-chain.', has(d.mvrv)
@@ -185,5 +191,6 @@ export function render() {
       <p class="label mt-2">Fuente: <a class="text-[#38bdf8] underline" href="${ETF_URL}" target="_blank" rel="noopener noreferrer">Bitcoin ETF Flows</a> (axeladlerjr.com).</p>`)}
     <p class="label">Datos on-chain: Bitview (bitview.space), licencia CC BY 4.0. Gráficos ETF y Rainbow, y liquidaciones de Hyperliquid: axeladlerjr.com. Fear & Greed: CoinGecko. MVRV, media de 200 semanas y RSI se calculan localmente.</p>`;
 
+  bindSpirals(root);
   root.querySelectorAll('[data-mrange]').forEach(el => (el.onclick = () => { range = el.dataset.mrange; render(); }));
 }
