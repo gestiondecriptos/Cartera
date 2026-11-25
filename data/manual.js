@@ -10,7 +10,7 @@ export const MANUAL = {
   // 2) Dual Investment (red BSC): cantidad de cada activo y deuda en USDT
   dualLedger: { BTCB: 0.001, ETH: 0, BNB: 0, USDT: 76.70 },
   dualDebtLedger: 0,
-  dualBnb: { BTCB: 0.00296628, ETH: 0.04445563, BNB: 0, USDT: 0 },
+  dualBnb: { BTCB: 0.00069912, ETH: 0, BNB: 0, USDT: 0 },
   dualDebtBnb: 0,
 
   // 3) SKY en staking (cantidad)
@@ -104,7 +104,10 @@ export const MANUAL = {
   // 8) Activos en órdenes abiertas (no aparecen en ninguna wallet). Una línea por activo.
   //    network: 'CEX' por defecto · custody: 'exchange' por defecto · where: texto libre opcional (ej. 'Binance')
   openOrders: [
-    { symbol: 'USDC', amount: 1, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
+    { symbol: 'USDC', amount: 0, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
+    { symbol: 'BTCB', amount: 0.000998, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
+    { symbol: 'BTCB', amount: 0.00127, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
+    { symbol: 'ETH', amount: 0.044532, network: 'bsc', custody: 'metamask', where: 'Órdenes para compensar Dual Investment fallido' },
   ],
   // 6) Entradas de pools (para IL, tiempo y ROI). La clave es el «id» que aparece bajo cada pool en la pestaña Pools.
   //    a0 y a1 = cantidad inicial de cada token (opcional: 0 si no la sabes; sin ellas no se calcula el IL).
