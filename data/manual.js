@@ -100,6 +100,7 @@ export const MANUAL = {
   manualAssets: [
    { network: 'Base', symbol: 'USDC', amount: 0, custody: 'metamask' },
    { network: 'Base', symbol: 'ETH', amount: 0.00091, custody: 'metamask' },
+   { network: 'Solana', symbol: 'USDC', amount: 33, custody: 'Phantom' },
   ],
   // 8) Activos en órdenes abiertas (no aparecen en ninguna wallet). Una línea por activo.
   //    network: 'CEX' por defecto · custody: 'exchange' por defecto · where: texto libre opcional (ej. 'Binance')
